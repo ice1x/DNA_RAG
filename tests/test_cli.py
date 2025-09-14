@@ -1,47 +1,43 @@
-import os
 import sys
-import subprocess
 from pathlib import Path
+from unittest.mock import Mock
+
+import cli
 
 
-def test_cli_ask(tmp_path):
+def test_cli_ask(tmp_path, monkeypatch, capsys):
     dna_file = tmp_path / "dna.csv"
     dna_file.write_text("rs1,1,111,AA\n")
 
-    stub_dir = tmp_path / "stub"
-    stub_dir.mkdir()
-    stub_file = stub_dir / "langchain_deepseek.py"
-    stub_file.write_text(
-        '''
-class ChatDeepSeek:
-    def __init__(self, *args, **kwargs):
-        self.calls = 0
-    def __call__(self, messages):
-        responses = [
-            '{"rs1": {"gene": "GENE", "chromosome": "1", "position": 111}}',
-            'cli answer'
-        ]
-        content = responses[self.calls]
-        self.calls += 1
-        class R:
-            def __init__(self, c):
-                self.content = c
-        return R(content)
-'''
-    )
+    responses = [
+        {
+            "choices": [
+                {"message": {"content": '{"rs1": {"gene": "GENE", "chromosome": "1", "position": 111}}'}}
+            ]
+        },
+        {"choices": [{"message": {"content": "cli answer"}}]},
+    ]
+    call = {"i": 0}
 
-    env = os.environ.copy()
-    env["API_KEY"] = "test"
-    repo_root = Path(__file__).resolve().parents[1]
-    env["PYTHONPATH"] = f"{stub_dir}{os.pathsep}{repo_root}"
+    def fake_post(url, headers, json, timeout):
+        data = responses[call["i"]]
+        call["i"] += 1
+        mock_resp = Mock()
+        mock_resp.json.return_value = data
+        mock_resp.raise_for_status.return_value = None
+        return mock_resp
 
-    result = subprocess.run(
-        [sys.executable, "-m", "cli", "--dna-file", str(dna_file), "--question", "hi"],
-        capture_output=True,
-        text=True,
-        env=env,
-        cwd=tmp_path,
-        check=True,
-    )
+    monkeypatch.setattr("langchain_deepseek.requests.post", fake_post)
+    monkeypatch.setenv("API_KEY", "test")
+    monkeypatch.setattr(sys, "argv", [
+        "cli",
+        "--dna-file",
+        str(dna_file),
+        "--question",
+        "hi",
+    ])
 
-    assert "cli answer" in result.stdout
+    cli.main()
+    captured = capsys.readouterr()
+    assert "cli answer" in captured.out
+
