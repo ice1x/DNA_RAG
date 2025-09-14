@@ -1,0 +1,11 @@
+[tool.pytest.ini_options]
+addopts = "--cov=chat_dna --cov-report=term-missing --cov-fail-under=80"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["chat_dna"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
