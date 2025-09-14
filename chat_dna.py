@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Tuple
 
+import hashlib
 import json
 import pandas as pd
 from pandas import DataFrame
@@ -28,7 +29,9 @@ class ChatDNA:
             max_retries=2,
             api_key=api_key,
         )
-        self._dna_cache: Dict[Path, DataFrame] = {}
+        self._dna_cache: Dict[Path, Tuple[str, DataFrame]] = {}
+        self._snp_cache: Dict[str, Dict[str, Dict[str, str]]] = {}
+        self._answer_cache: Dict[str, Dict[str, str]] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -44,16 +47,31 @@ class ChatDNA:
             Path to a CSV file in the 23andMe/AncestryDNA format.
         """
 
-        df = self._load_dna(dna_file)
-        snp_dict = self._get_snp_dict(question)
+        file_hash = self._hash_file(dna_file)
+        df = self._load_dna(dna_file, file_hash)
+
+        answers_for_file = self._answer_cache.setdefault(file_hash, {})
+        if question in answers_for_file:
+            return answers_for_file[question]
+
+        snp_dict = self._snp_cache.get(question)
+        if snp_dict is None:
+            snp_dict = self._get_snp_dict(question)
+            self._snp_cache[question] = snp_dict
         if not snp_dict:
-            return "No relevant SNPs found."
+            answer = "No relevant SNPs found."
+            answers_for_file[question] = answer
+            return answer
 
         filtered = self._filter_snps(df, snp_dict)
         if filtered.empty:
-            return "No matching variants found in the provided DNA file."
+            answer = "No matching variants found in the provided DNA file."
+            answers_for_file[question] = answer
+            return answer
 
-        return self._interpret(filtered, question)
+        answer = self._interpret(filtered, question)
+        answers_for_file[question] = answer
+        return answer
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -90,18 +108,24 @@ class ChatDNA:
             pass
         return {}
 
-    def _load_dna(self, dna_file: Path) -> DataFrame:
+    def _hash_file(self, dna_file: Path) -> str:
+        """Return a hash of *dna_file* to detect content changes."""
+
+        return hashlib.sha256(dna_file.read_bytes()).hexdigest()
+
+    def _load_dna(self, dna_file: Path, file_hash: str) -> DataFrame:
         """Load *dna_file* into a :class:`~pandas.DataFrame` with caching."""
 
-        if dna_file not in self._dna_cache:
+        cached = self._dna_cache.get(dna_file)
+        if cached is None or cached[0] != file_hash:
             df = pd.read_csv(
                 dna_file,
                 comment="#",
                 delimiter=",",
                 names=["RSID", "CHROMOSOME", "POSITION", "GENOTYPE"],
             )
-            self._dna_cache[dna_file] = df
-        return self._dna_cache[dna_file]
+            self._dna_cache[dna_file] = (file_hash, df)
+        return self._dna_cache[dna_file][1]
 
     def _filter_snps(self, df: DataFrame, snp_dict: Dict[str, Dict[str, str]]) -> DataFrame:
         """Return rows from *df* whose RSIDs appear in *snp_dict*.
