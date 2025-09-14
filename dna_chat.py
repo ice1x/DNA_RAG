@@ -1,4 +1,6 @@
 import os
+import json
+
 import pandas as pd
 from langchain_deepseek import ChatDeepSeek
 from langchain.schema import HumanMessage
@@ -52,13 +54,23 @@ class DnaAnalysisClient:
         If there are no matching SNPs, return an empty dictionary: {{}}
         """
 
-        response = self.llm([HumanMessage(content=prompt)]).content
-
         try:
-            snp_dict = eval(response.strip())  # Convert the string into a dictionary
-            return snp_dict
-        except:
-            print("Error parsing LLM response.")
+            response = self.llm([HumanMessage(content=prompt)]).content
+            response = response.strip()
+
+            # Try to parse the response as JSON
+            try:
+                snp_dict = json.loads(response)
+                if not isinstance(snp_dict, dict):
+                    raise ValueError("Response is not in the expected dictionary format.")
+                return snp_dict
+
+            except json.JSONDecodeError:
+                print("Error: Response is not a valid JSON.")
+                return {}
+
+        except Exception as e:
+            print(f"Unexpected error during LLM query or processing: {e}")
             return {}
 
     def process_dna_data(self, input_file: str, snp_dict: Dict[str, Dict[str, str]]) -> pd.DataFrame:
