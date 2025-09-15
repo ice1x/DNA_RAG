@@ -169,16 +169,37 @@ class ChatDNA:
         return hashlib.sha256(dna_file.read_bytes()).hexdigest()
 
     def _load_dna(self, dna_file: Path, file_hash: str) -> DataFrame:
-        """Load *dna_file* into a :class:`~pandas.DataFrame` with caching."""
+        """Load *dna_file* into a :class:`~pandas.DataFrame` with caching.
+
+        The loader validates that the file exists and has a supported
+        extension.  ``.csv``/``.txt`` files are read directly while ``.gz`` and
+        ``.zip`` files are decompressed transparently.  Large CSV files are
+        streamed in chunks to reduce peak memory usage.
+        """
+
+        if not dna_file.exists():
+            raise FileNotFoundError(f"DNA file '{dna_file}' does not exist.")
+
+        if dna_file.suffix.lower() not in {".csv", ".txt", ".gz", ".zip"}:
+            raise ValueError(
+                f"Unsupported DNA file extension: '{dna_file.suffix}'. "
+                "Expected one of .csv, .txt, .gz or .zip."
+            )
 
         cached = self._dna_cache.get(dna_file)
         if cached is None or cached[0] != file_hash:
-            df = pd.read_csv(
-                dna_file,
+            read_csv_kwargs = dict(
                 comment="#",
                 delimiter=",",
                 names=["RSID", "CHROMOSOME", "POSITION", "GENOTYPE"],
+                compression="infer",
             )
+            # Stream large files in chunks to avoid excessive memory use
+            if dna_file.stat().st_size > 50 * 1024 * 1024:  # >50MB
+                chunks = pd.read_csv(dna_file, chunksize=100_000, **read_csv_kwargs)
+                df = pd.concat(chunks, ignore_index=True)
+            else:
+                df = pd.read_csv(dna_file, **read_csv_kwargs)
             self._dna_cache[dna_file] = (file_hash, df)
         return self._dna_cache[dna_file][1]
 
