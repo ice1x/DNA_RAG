@@ -5,10 +5,27 @@ from typing import Dict, Tuple
 
 import hashlib
 import json
+import logging
+
 import pandas as pd
 from pandas import DataFrame
 from langchain_deepseek import ChatDeepSeek
 from langchain.schema import HumanMessage
+from pydantic import BaseModel, RootModel, ValidationError
+
+
+logger = logging.getLogger(__name__)
+
+
+class SNPInfo(BaseModel):
+    gene: str
+    chromosome: str
+    position: int
+    trait: str | None = None
+
+
+class SNPResponse(RootModel[Dict[str, SNPInfo]]):
+    pass
 
 
 class ChatDNA:
@@ -76,6 +93,43 @@ class ChatDNA:
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+    @staticmethod
+    def _parse_snp_json(response: str) -> Dict[str, Dict[str, str]]:
+        """Parse and validate SNP JSON returned by the LLM.
+
+        Parameters
+        ----------
+        response: str
+            Raw JSON string returned by the LLM.
+
+        Returns
+        -------
+        Dict[str, Dict[str, str]]
+            Parsed SNP mapping.
+
+        Raises
+        ------
+        ValueError
+            If the JSON cannot be parsed or does not match the expected
+            schema.
+        """
+
+        try:
+            data = json.loads(response)
+        except json.JSONDecodeError as exc:
+            msg = f"Failed to decode SNP JSON: {exc}"
+            logger.error(msg)
+            raise ValueError(msg) from exc
+        try:
+            model = SNPResponse.model_validate(data)
+        except ValidationError as exc:
+            msg = f"Invalid SNP response structure: {exc}"
+            logger.error(msg)
+            raise ValueError(msg) from exc
+        return {
+            rsid: info.model_dump(exclude_none=True) for rsid, info in model.root.items()
+        }
+
     def _get_snp_dict(self, question: str) -> Dict[str, Dict[str, str]]:
         """Query the LLM for SNP identifiers related to *question*.
 
@@ -101,11 +155,12 @@ class ChatDNA:
 
         try:
             response = self.llm([HumanMessage(content=prompt)]).content.strip()
-            snp_dict = json.loads(response)
-            if isinstance(snp_dict, dict):
-                return snp_dict  # type: ignore[return-value]
-        except Exception:
+            return self._parse_snp_json(response)
+        except ValueError:
+            # Errors are logged in _parse_snp_json
             pass
+        except Exception:
+            logger.exception("Unexpected error while retrieving SNP data")
         return {}
 
     def _hash_file(self, dna_file: Path) -> str:
