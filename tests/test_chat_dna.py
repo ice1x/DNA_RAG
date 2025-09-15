@@ -29,3 +29,15 @@ def test_chat_dna_caching(sample_dna_file):
     assert chat.ask(q, sample_dna_file) == "interpretation"
     assert chat.ask(q, sample_dna_file) == "interpretation"
     assert fake.calls == 2
+
+
+def test_invalid_json_logs_error(sample_dna_file, caplog):
+    fake = FakeLLM(["not json"])
+    chat = ChatDNA(api_key="test")
+    chat.llm = fake
+
+    with caplog.at_level("ERROR"):
+        answer = chat.ask("lactose", sample_dna_file)
+
+    assert answer == "No relevant SNPs found."
+    assert "Failed to decode SNP JSON" in caplog.text

@@ -1,3 +1,4 @@
 pytest
 pytest-cov
 coverage
+pydantic==2.9.2
