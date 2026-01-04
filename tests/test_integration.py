@@ -1,6 +1,5 @@
 """Integration tests for DNA_RAG enhanced features."""
 
-from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pandas as pd
@@ -130,11 +129,11 @@ def test_caching(enhanced_chat, sample_dna_file_enhanced):
         mock_llm.return_value = mock_response
 
         # First call
-        result1 = enhanced_chat.ask("cache test", sample_dna_file_enhanced)
+        enhanced_chat.ask("cache test", sample_dna_file_enhanced)
         call_count_1 = mock_llm.call_count
 
         # Second call (should be cached)
-        result2 = enhanced_chat.ask("cache test", sample_dna_file_enhanced)
+        enhanced_chat.ask("cache test", sample_dna_file_enhanced)
         call_count_2 = mock_llm.call_count
 
         # LLM should not be called again

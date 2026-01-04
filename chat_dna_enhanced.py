@@ -14,10 +14,9 @@ import hashlib
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
-from langchain.schema import BaseMessage, HumanMessage
+from langchain.schema import HumanMessage
 from pandas import DataFrame
 from pydantic import BaseModel, Field
 
@@ -33,8 +32,8 @@ class SNPResult(BaseModel):
 
     rsid: str
     genotype: str
-    gene: Optional[str] = None
-    trait: Optional[str] = None
+    gene: str | None = None
+    trait: str | None = None
     validated: bool = False
     similarity: float = 0.0
 
@@ -45,9 +44,9 @@ class InterpretationResult(BaseModel):
     question: str
     interpretation: str
     confidence: float = Field(ge=0.0, le=1.0, description="Confidence score 0-1")
-    snps_found: List[SNPResult] = Field(default_factory=list)
-    sources: List[str] = Field(default_factory=list)
-    caveats: List[str] = Field(default_factory=list)
+    snps_found: list[SNPResult] = Field(default_factory=list)
+    sources: list[str] = Field(default_factory=list)
+    caveats: list[str] = Field(default_factory=list)
 
 
 class ConversationMessage(BaseModel):
@@ -55,7 +54,7 @@ class ConversationMessage(BaseModel):
 
     role: str  # "user" or "assistant"
     content: str
-    metadata: Dict[str, str | int | float] = Field(default_factory=dict)
+    metadata: dict[str, str | int | float] = Field(default_factory=dict)
 
 
 class ChatDNAEnhanced:
@@ -73,7 +72,7 @@ class ChatDNAEnhanced:
         api_key: str,
         use_vector_store: bool = True,
         use_validation: bool = True,
-        vector_store_path: Optional[Path] = None,
+        vector_store_path: Path | None = None,
     ) -> None:
         """Initialize enhanced ChatDNA.
 
@@ -98,15 +97,15 @@ class ChatDNAEnhanced:
         )
 
         # Caches
-        self._dna_cache: Dict[Path, Tuple[str, DataFrame]] = {}
-        self._answer_cache: Dict[str, Dict[str, InterpretationResult]] = {}
+        self._dna_cache: dict[Path, tuple[str, DataFrame]] = {}
+        self._answer_cache: dict[str, dict[str, InterpretationResult]] = {}
 
         # Enhanced components
         self._use_vector_store = use_vector_store
         self._use_validation = use_validation
 
         # Initialize vector store
-        self._vector_store: Optional[SNPVectorStore] = None
+        self._vector_store: SNPVectorStore | None = None
         if use_vector_store:
             self._vector_store = SNPVectorStore(persist_directory=vector_store_path)
             # Initialize with sample data if empty
@@ -114,12 +113,12 @@ class ChatDNAEnhanced:
                 create_sample_snp_database(self._vector_store)
 
         # Initialize SNP database
-        self._snp_db: Optional[SNPDatabase] = None
+        self._snp_db: SNPDatabase | None = None
         if use_validation:
             self._snp_db = SNPDatabase()
 
         # Conversation history (per file)
-        self._conversations: Dict[str, List[ConversationMessage]] = {}
+        self._conversations: dict[str, list[ConversationMessage]] = {}
 
     def ask(
         self, question: str, dna_file: Path, return_structured: bool = True
@@ -224,7 +223,7 @@ class ChatDNAEnhanced:
 
         return result if return_structured else result.interpretation
 
-    def get_conversation_history(self, dna_file: Path) -> List[ConversationMessage]:
+    def get_conversation_history(self, dna_file: Path) -> list[ConversationMessage]:
         """Get conversation history for a DNA file.
 
         Parameters
@@ -239,7 +238,7 @@ class ChatDNAEnhanced:
         """
         return self._conversations.get(str(dna_file), [])
 
-    def _get_snps_from_vector_store(self, question: str) -> Dict[str, Dict[str, str | int | float]]:
+    def _get_snps_from_vector_store(self, question: str) -> dict[str, dict[str, str | int | float]]:
         """Get relevant SNPs using vector store RAG.
 
         Parameters
@@ -257,7 +256,7 @@ class ChatDNAEnhanced:
 
         return self._vector_store.search(question, n_results=10, min_similarity=0.3)
 
-    def _get_snps_from_llm(self, question: str) -> Dict[str, Dict[str, str | int | float]]:
+    def _get_snps_from_llm(self, question: str) -> dict[str, dict[str, str | int | float]]:
         """Get SNPs using LLM (legacy method).
 
         Parameters
@@ -293,8 +292,8 @@ Return an empty dictionary ({{}}) if nothing matches."""
             return {}
 
     def _validate_snps(
-        self, snp_dict: Dict[str, Dict[str, str | int | float]]
-    ) -> Dict[str, Dict[str, str | int | float]]:
+        self, snp_dict: dict[str, dict[str, str | int | float]]
+    ) -> dict[str, dict[str, str | int | float]]:
         """Validate SNPs through dbSNP.
 
         Parameters
@@ -310,7 +309,7 @@ Return an empty dictionary ({{}}) if nothing matches."""
         if not self._snp_db:
             return snp_dict
 
-        validated_dict: Dict[str, Dict[str, str | int | float]] = {}
+        validated_dict: dict[str, dict[str, str | int | float]] = {}
 
         for rsid, info in snp_dict.items():
             validation = self._snp_db.validate_rsid(rsid)
@@ -334,7 +333,7 @@ Return an empty dictionary ({{}}) if nothing matches."""
         self,
         df: DataFrame,
         question: str,
-        snp_dict: Dict[str, Dict[str, str | int | float]],
+        snp_dict: dict[str, dict[str, str | int | float]],
     ) -> InterpretationResult:
         """Create enhanced interpretation with structured output.
 
@@ -442,7 +441,7 @@ CAVEATS: [caveat 1]; [caveat 2]; ...
         return 0.5
 
     @staticmethod
-    def _parse_caveats(response: str) -> List[str]:
+    def _parse_caveats(response: str) -> list[str]:
         """Parse caveats from LLM response."""
         for line in response.split("\n"):
             if line.startswith("CAVEATS:"):
@@ -469,12 +468,12 @@ CAVEATS: [caveat 1]; [caveat 2]; ...
 
         cached = self._dna_cache.get(dna_file)
         if cached is None or cached[0] != file_hash:
-            read_csv_kwargs = dict(
-                comment="#",
-                delimiter=",",
-                names=["RSID", "CHROMOSOME", "POSITION", "GENOTYPE"],
-                compression="infer",
-            )
+            read_csv_kwargs = {
+                "comment": "#",
+                "delimiter": ",",
+                "names": ["RSID", "CHROMOSOME", "POSITION", "GENOTYPE"],
+                "compression": "infer",
+            }
             if dna_file.stat().st_size > 50 * 1024 * 1024:
                 chunks = pd.read_csv(dna_file, chunksize=100_000, **read_csv_kwargs)
                 df = pd.concat(chunks, ignore_index=True)
@@ -484,7 +483,7 @@ CAVEATS: [caveat 1]; [caveat 2]; ...
         return self._dna_cache[dna_file][1]
 
     def _filter_snps(
-        self, df: DataFrame, snp_dict: Dict[str, Dict[str, str | int | float]]
+        self, df: DataFrame, snp_dict: dict[str, dict[str, str | int | float]]
     ) -> DataFrame:
         """Return rows from df whose RSIDs appear in snp_dict."""
         if not snp_dict:

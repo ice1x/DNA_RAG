@@ -8,7 +8,6 @@ estimate risk for complex traits.
 from __future__ import annotations
 
 import logging
-from typing import Dict, List
 
 import pandas as pd
 from pydantic import BaseModel, Field
@@ -30,7 +29,7 @@ class PolygenicScore(BaseModel):
 
     name: str
     description: str
-    snp_weights: List[SNPWeight]
+    snp_weights: list[SNPWeight]
     baseline_risk: float = Field(
         default=0.0,
         description="Population baseline risk or mean score",
@@ -63,7 +62,7 @@ class PolygenicScoreCalculator:
 
     def __init__(self) -> None:
         """Initialize the PRS calculator."""
-        self._scores: Dict[str, PolygenicScore] = {}
+        self._scores: dict[str, PolygenicScore] = {}
         self._load_example_scores()
 
     def _load_example_scores(self) -> None:
@@ -247,7 +246,7 @@ class PolygenicScoreCalculator:
             "disease risk."
         )
 
-    def list_available_scores(self) -> List[str]:
+    def list_available_scores(self) -> list[str]:
         """List available polygenic scores.
 
         Returns

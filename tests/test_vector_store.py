@@ -1,7 +1,5 @@
 """Tests for vector store module."""
 
-from pathlib import Path
-
 import pytest
 
 from vector_store import SNPVectorStore, create_sample_snp_database

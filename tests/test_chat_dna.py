@@ -2,9 +2,9 @@ import gzip
 from pathlib import Path
 
 import pytest
+from fake_llm import FakeLLM
 
 from chat_dna import ChatDNA
-from fake_llm import FakeLLM
 
 
 def test_chat_dna_load_and_filter(sample_dna_file):

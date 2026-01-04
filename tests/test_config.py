@@ -2,9 +2,9 @@
 
 import os
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 from config import DNARAGSettings, get_settings, reload_settings
 
@@ -145,7 +145,7 @@ def test_temperature_validation(clean_env, monkeypatch):
 
     # Invalid temperature (too high) should be handled by Pydantic
     monkeypatch.setenv("DNA_RAG_LLM_TEMPERATURE", "3.0")
-    with pytest.raises(Exception):  # Pydantic validation error
+    with pytest.raises(ValidationError):  # Pydantic validation error
         DNARAGSettings()
 
 
@@ -158,7 +158,7 @@ def test_cache_size_validation(clean_env, monkeypatch):
 
     # Invalid cache size (zero or negative)
     monkeypatch.setenv("DNA_RAG_MAX_CACHE_SIZE", "0")
-    with pytest.raises(Exception):  # Pydantic validation error
+    with pytest.raises(ValidationError):  # Pydantic validation error
         DNARAGSettings()
 
 

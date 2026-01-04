@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import gzip
 import logging
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator, Optional, TextIO
+from typing import TextIO
 
 import pandas as pd
 from pandas import DataFrame
@@ -70,9 +71,9 @@ class VCFParser:
         """
         if self.vcf_file.suffix == ".gz":
             return gzip.open(self.vcf_file, "rt", encoding="utf-8")  # type: ignore
-        return open(self.vcf_file, "r", encoding="utf-8")
+        return open(self.vcf_file, encoding="utf-8")
 
-    def _parse_records(self, vcf: TextIO) -> Iterator[Optional[dict[str, str | int]]]:
+    def _parse_records(self, vcf: TextIO) -> Iterator[dict[str, str | int] | None]:
         """Parse VCF records.
 
         Parameters
@@ -95,7 +96,7 @@ class VCFParser:
             if record:
                 yield record
 
-    def _parse_variant_line(self, line: str) -> Optional[dict[str, str | int]]:
+    def _parse_variant_line(self, line: str) -> dict[str, str | int] | None:
         """Parse a single VCF variant line.
 
         Parameters
@@ -150,7 +151,7 @@ class VCFParser:
             return None
 
     @staticmethod
-    def _extract_genotype(format_field: str, sample: str, ref: str, alt: str) -> Optional[str]:
+    def _extract_genotype(format_field: str, sample: str, ref: str, alt: str) -> str | None:
         """Extract genotype from FORMAT and sample fields.
 
         Parameters
@@ -208,7 +209,7 @@ class VCFParser:
             return None
 
     @staticmethod
-    def _extract_rsid_from_info(info: str) -> Optional[str]:
+    def _extract_rsid_from_info(info: str) -> str | None:
         """Extract RS ID from INFO field.
 
         Parameters

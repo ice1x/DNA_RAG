@@ -7,7 +7,6 @@ structured output, and polygenic risk scores.
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 
 from chat_dna_enhanced import ChatDNAEnhanced

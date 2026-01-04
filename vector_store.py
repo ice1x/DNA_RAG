@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import chromadb
 from chromadb.config import Settings
@@ -28,7 +27,7 @@ class SNPVectorStore:
 
     def __init__(
         self,
-        persist_directory: Optional[Path] = None,
+        persist_directory: Path | None = None,
         embedding_model: str = "all-MiniLM-L6-v2",
         collection_name: str = "snp_traits",
     ) -> None:
@@ -66,10 +65,10 @@ class SNPVectorStore:
         self,
         rsid: str,
         trait: str,
-        gene: Optional[str] = None,
-        chromosome: Optional[str] = None,
-        position: Optional[int] = None,
-        description: Optional[str] = None,
+        gene: str | None = None,
+        chromosome: str | None = None,
+        position: int | None = None,
+        description: str | None = None,
     ) -> None:
         """Add a SNP to the vector store.
 
@@ -101,7 +100,7 @@ class SNPVectorStore:
         embedding = self._embedding_model.encode(text).tolist()
 
         # Prepare metadata
-        metadata: Dict[str, str | int] = {"trait": trait}
+        metadata: dict[str, str | int] = {"trait": trait}
         if gene:
             metadata["gene"] = gene
         if chromosome:
@@ -119,7 +118,7 @@ class SNPVectorStore:
 
         logger.debug(f"Added {rsid} to vector store")
 
-    def add_snps_batch(self, snps: List[Dict[str, str | int]]) -> None:
+    def add_snps_batch(self, snps: list[dict[str, str | int]]) -> None:
         """Add multiple SNPs to the vector store.
 
         Parameters
@@ -153,7 +152,7 @@ class SNPVectorStore:
             embedding = self._embedding_model.encode(text).tolist()
 
             # Prepare metadata
-            metadata: Dict[str, str | int] = {"trait": trait}
+            metadata: dict[str, str | int] = {"trait": trait}
             if gene:
                 metadata["gene"] = str(gene)
             if chromosome:
@@ -178,7 +177,7 @@ class SNPVectorStore:
 
     def search(
         self, query: str, n_results: int = 10, min_similarity: float = 0.3
-    ) -> Dict[str, Dict[str, str | int]]:
+    ) -> dict[str, dict[str, str | int]]:
         """Search for SNPs relevant to a query.
 
         Parameters
@@ -205,7 +204,7 @@ class SNPVectorStore:
         )
 
         # Parse results
-        snp_dict: Dict[str, Dict[str, str | int]] = {}
+        snp_dict: dict[str, dict[str, str | int]] = {}
 
         if not results["ids"] or not results["ids"][0]:
             return snp_dict

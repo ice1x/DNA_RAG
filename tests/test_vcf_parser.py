@@ -1,7 +1,6 @@
 """Tests for VCF parser module."""
 
 import gzip
-from pathlib import Path
 
 import pytest
 

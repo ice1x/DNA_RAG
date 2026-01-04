@@ -12,8 +12,6 @@ response is returned so callers do not have to deal with exceptions.
 
 from __future__ import annotations
 
-from typing import List, Optional
-
 import requests
 from langchain.schema import BaseMessage
 
@@ -25,8 +23,8 @@ class ChatDeepSeek:
         self,
         model: str,
         temperature: float = 0,
-        max_tokens: Optional[int] = None,
-        timeout: Optional[float] = None,
+        max_tokens: int | None = None,
+        timeout: float | None = None,
         max_retries: int = 0,
         api_key: str | None = None,
     ) -> None:
@@ -39,7 +37,7 @@ class ChatDeepSeek:
         self.endpoint = "https://api.deepseek.com/v1/chat/completions"
 
     # ------------------------------------------------------------------
-    def __call__(self, messages: List[BaseMessage]):
+    def __call__(self, messages: list[BaseMessage]):
         payload = {
             "model": self.model,
             "messages": [

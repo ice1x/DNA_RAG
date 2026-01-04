@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import requests
 from cachetools import TTLCache
@@ -24,11 +24,11 @@ class SNPValidationResult(BaseModel):
 
     rsid: str
     exists: bool
-    chromosome: Optional[str] = None
-    position: Optional[int] = None
-    gene: Optional[str] = None
-    clinical_significance: Optional[str] = None
-    alleles: List[str] = Field(default_factory=list)
+    chromosome: str | None = None
+    position: int | None = None
+    gene: str | None = None
+    clinical_significance: str | None = None
+    alleles: list[str] = Field(default_factory=list)
     validated: bool = False
     source: str = "unknown"
 
@@ -90,7 +90,7 @@ class SNPDatabase:
         self._cache[rsid] = result
         return result
 
-    def validate_batch(self, rsids: List[str]) -> Dict[str, SNPValidationResult]:
+    def validate_batch(self, rsids: list[str]) -> dict[str, SNPValidationResult]:
         """Validate multiple RSIDs in batch.
 
         Parameters
@@ -183,7 +183,7 @@ class SNPDatabase:
             )
 
     @staticmethod
-    def _extract_chromosome(snp_data: Dict[str, Any]) -> Optional[str]:
+    def _extract_chromosome(snp_data: dict[str, Any]) -> str | None:
         """Extract chromosome from dbSNP data."""
         try:
             chr_data = snp_data.get("chr", "")
@@ -192,7 +192,7 @@ class SNPDatabase:
             return None
 
     @staticmethod
-    def _extract_position(snp_data: Dict[str, Any]) -> Optional[int]:
+    def _extract_position(snp_data: dict[str, Any]) -> int | None:
         """Extract genomic position from dbSNP data."""
         try:
             # Try to get position from chrpos field
@@ -204,7 +204,7 @@ class SNPDatabase:
             return None
 
     @staticmethod
-    def _extract_gene(snp_data: Dict[str, Any]) -> Optional[str]:
+    def _extract_gene(snp_data: dict[str, Any]) -> str | None:
         """Extract gene name from dbSNP data."""
         try:
             genes = snp_data.get("genes", [])
@@ -218,7 +218,7 @@ class SNPDatabase:
             return None
 
     @staticmethod
-    def _extract_alleles(snp_data: Dict[str, Any]) -> List[str]:
+    def _extract_alleles(snp_data: dict[str, Any]) -> list[str]:
         """Extract alleles from dbSNP data."""
         try:
             # Get allele string (e.g., "A/G")
@@ -233,7 +233,7 @@ class SNPDatabase:
         except (KeyError, ValueError):
             return []
 
-    def get_clinical_significance(self, rsid: str) -> Optional[str]:
+    def get_clinical_significance(self, rsid: str) -> str | None:
         """Get clinical significance from ClinVar.
 
         Parameters

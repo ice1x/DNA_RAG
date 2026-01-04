@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -60,7 +59,7 @@ class DNARAGSettings(BaseSettings):
     )
 
     # Vector Store Settings
-    vector_store_path: Optional[Path] = Field(
+    vector_store_path: Path | None = Field(
         default=Path("./data/vector_store"),
         description="Path to vector store directory",
     )
@@ -143,7 +142,7 @@ class DNARAGSettings(BaseSettings):
 
 
 # Global settings instance
-_settings: Optional[DNARAGSettings] = None
+_settings: DNARAGSettings | None = None
 
 
 def get_settings() -> DNARAGSettings:
