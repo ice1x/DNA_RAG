@@ -118,13 +118,15 @@ def test_count(vector_store):
     initial = vector_store.count()
     assert initial >= 0
 
-    vector_store.add_snp(rsid="rs1", trait="Test")
+    # Use a unique ID that won't exist in the sample database
+    vector_store.add_snp(rsid="rs_test_unique_count", trait="Test")
     assert vector_store.count() == initial + 1
 
 
 def test_clear(vector_store):
     """Test clearing vector store."""
-    vector_store.add_snp(rsid="rs1", trait="Test")
+    # Use a unique ID that won't exist in the sample database
+    vector_store.add_snp(rsid="rs_test_unique_clear", trait="Test")
     assert vector_store.count() > 0
 
     vector_store.clear()
