@@ -5,7 +5,14 @@ variables. It uses pydantic-settings for validation and python-dotenv for
 loading .env files.
 
 Environment Variables:
-    DEEPSEEK_API_KEY: DeepSeek API key (required)
+    # LLM Provider API Keys
+    OPENAI_API_KEY: OpenAI API key (optional)
+    DEEPSEEK_API_KEY: DeepSeek API key (optional, legacy support)
+    DNA_RAG_OPENAI_API_KEY: OpenAI API key (optional)
+    DNA_RAG_DEEPSEEK_API_KEY: DeepSeek API key (optional)
+    DNA_RAG_LLM_PROVIDERS: Priority list of providers (default: openai,deepseek)
+
+    # Other Settings
     DNA_RAG_CACHE_TTL: SNP database cache TTL in seconds (default: 3600)
     DNA_RAG_MAX_CACHE_SIZE: Maximum cache size (default: 1000)
     DNA_RAG_REQUEST_TIMEOUT: HTTP request timeout in seconds (default: 10.0)
@@ -13,9 +20,10 @@ Environment Variables:
     DNA_RAG_EMBEDDING_MODEL: Sentence transformer model name (default: all-MiniLM-L6-v2)
     DNA_RAG_USE_VECTOR_STORE: Enable vector store (default: true)
     DNA_RAG_USE_VALIDATION: Enable SNP validation (default: true)
-    DNA_RAG_LLM_MODEL: LLM model name (default: deepseek-r1:free)
     DNA_RAG_LLM_TEMPERATURE: LLM temperature (default: 0.0)
     DNA_RAG_LLM_MAX_RETRIES: LLM max retries (default: 2)
+    DNA_RAG_OPENAI_MODEL: OpenAI model name (default: gpt-4o-mini)
+    DNA_RAG_DEEPSEEK_MODEL: DeepSeek model name (default: deepseek-chat)
 """
 
 from __future__ import annotations
@@ -34,11 +42,30 @@ class DNARAGSettings(BaseSettings):
     DNA_RAG_ prefix or via .env file.
     """
 
-    # API Keys
+    # API Keys for LLM Providers
+    openai_api_key: str = Field(
+        default="",
+        description="OpenAI API key",
+    )
     deepseek_api_key: str = Field(
         default="",
-        alias="DEEPSEEK_API_KEY",
         description="DeepSeek API key",
+    )
+
+    # LLM Provider Priority
+    llm_providers: str = Field(
+        default="openai,deepseek",
+        description="Comma-separated list of LLM providers in priority order",
+    )
+
+    # Provider-specific Models
+    openai_model: str = Field(
+        default="gpt-4o-mini",
+        description="OpenAI model name",
+    )
+    deepseek_model: str = Field(
+        default="deepseek-chat",
+        description="DeepSeek model name",
     )
 
     # SNP Database Settings
@@ -79,10 +106,6 @@ class DNARAGSettings(BaseSettings):
     )
 
     # LLM Settings
-    llm_model: str = Field(
-        default="deepseek-r1:free",
-        description="LLM model name",
-    )
     llm_temperature: float = Field(
         default=0.0,
         ge=0.0,
@@ -113,19 +136,90 @@ class DNARAGSettings(BaseSettings):
             return Path(v)
         return v
 
-    def validate_api_key(self) -> None:
-        """Validate that API key is set.
+    @field_validator("openai_api_key", "deepseek_api_key", mode="before")
+    @classmethod
+    def load_api_key_with_fallback(cls, v: str, info) -> str:
+        """Load API key with fallback to non-prefixed env vars."""
+        if v:
+            return v
+        # Fallback to non-prefixed environment variables
+        field_name = info.field_name
+        if field_name == "openai_api_key":
+            return os.environ.get("OPENAI_API_KEY", "")
+        elif field_name == "deepseek_api_key":
+            # Support legacy DEEPSEEK_API_KEY and API_KEY
+            return os.environ.get("DEEPSEEK_API_KEY") or os.environ.get("API_KEY") or ""
+        return v
+
+    def validate_api_keys(self) -> None:
+        """Validate that at least one API key is configured.
 
         Raises
         ------
         ValueError
-            If API key is not configured.
+            If no API keys are configured.
         """
-        if not self.deepseek_api_key:
+        if not self.openai_api_key and not self.deepseek_api_key:
             raise ValueError(
-                "DEEPSEEK_API_KEY environment variable is not set. "
-                "Please set it in your environment or .env file."
+                "No LLM provider API keys configured. "
+                "Please set OPENAI_API_KEY or DEEPSEEK_API_KEY in your environment or .env file."
             )
+
+    def get_provider_priority(self) -> list[str]:
+        """Get list of providers in priority order.
+
+        Returns
+        -------
+        list[str]
+            Provider names in priority order
+        """
+        return [p.strip().lower() for p in self.llm_providers.split(",") if p.strip()]
+
+    def create_llm_manager(self):
+        """Create LLM provider manager with configured providers.
+
+        Returns
+        -------
+        LLMProviderManager
+            Configured provider manager
+
+        Raises
+        ------
+        ValueError
+            If no valid providers are configured
+        """
+        from llm_providers import (
+            DeepSeekProvider,
+            LLMProviderManager,
+            OpenAIProvider,
+        )
+
+        providers = []
+        priority = self.get_provider_priority()
+
+        for provider_name in priority:
+            if provider_name == "openai" and self.openai_api_key:
+                providers.append(
+                    OpenAIProvider(
+                        api_key=self.openai_api_key,
+                        model=self.openai_model,
+                        temperature=self.llm_temperature,
+                        max_retries=self.llm_max_retries,
+                        timeout=self.request_timeout,
+                    )
+                )
+            elif provider_name == "deepseek" and self.deepseek_api_key:
+                providers.append(
+                    DeepSeekProvider(
+                        api_key=self.deepseek_api_key,
+                        model=self.deepseek_model,
+                        temperature=self.llm_temperature,
+                        max_retries=self.llm_max_retries,
+                        timeout=self.request_timeout,
+                    )
+                )
+
+        return LLMProviderManager(providers)
 
     def get_vector_store_path(self) -> Path | None:
         """Get vector store path, creating directory if needed.
