@@ -179,6 +179,9 @@ def reload_settings() -> DNARAGSettings:
         New settings instance.
     """
     global _settings
+    # Apply backward compatibility before reloading
+    if "API_KEY" in os.environ and "DEEPSEEK_API_KEY" not in os.environ:
+        os.environ["DEEPSEEK_API_KEY"] = os.environ["API_KEY"]
     _settings = DNARAGSettings()
     return _settings
 

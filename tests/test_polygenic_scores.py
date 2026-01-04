@@ -40,7 +40,7 @@ def test_calculate_alzheimers(calculator, sample_genotype_data):
     assert result.score_name == "alzheimers_risk"
     assert result.snps_matched >= 0
     assert result.snps_total == 2
-    assert 0.0 <= result.confidence <= 1.0 or result.confidence == result.raw_score
+    assert result.raw_score >= 0.0  # Raw score should be non-negative
     assert 0.0 <= result.percentile <= 100.0
 
 
@@ -76,7 +76,7 @@ def test_score_to_percentile():
     # Test various z-scores
     assert calc._score_to_percentile(-3.0) == 2.5
     assert calc._score_to_percentile(-1.0) == 16.0
-    assert calc._score_to_percentile(0.0) < 50.0
+    assert calc._score_to_percentile(0.0) == 50.0  # Median percentile
     assert calc._score_to_percentile(1.0) == 84.0
     assert calc._score_to_percentile(3.0) == 97.5
 

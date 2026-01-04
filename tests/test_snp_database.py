@@ -3,6 +3,7 @@
 from unittest.mock import Mock, patch
 
 import pytest
+import requests
 
 from snp_database import SNPDatabase, SNPValidationResult
 
@@ -81,7 +82,7 @@ def test_validate_rsid_not_found(mock_get, snp_db):
 @patch("snp_database.requests.Session.get")
 def test_validate_rsid_network_error(mock_get, snp_db):
     """Test validation with network error."""
-    mock_get.side_effect = Exception("Network error")
+    mock_get.side_effect = requests.RequestException("Network error")
 
     result = snp_db.validate_rsid("rs123")
 

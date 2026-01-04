@@ -31,7 +31,11 @@ def test_cli_ask(tmp_path, monkeypatch, capsys):
         return mock_resp
 
     monkeypatch.setattr("langchain_deepseek.requests.post", fake_post)
-    monkeypatch.setenv("API_KEY", "test")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test")
+    # Reload config to pick up the new environment variable
+    import config
+
+    config.reload_settings()
     monkeypatch.setattr(
         sys,
         "argv",
