@@ -36,11 +36,13 @@ def main() -> None:
     # Load configuration from environment
     settings = get_settings()
     try:
-        settings.validate_api_key()
+        settings.validate_api_keys()
     except ValueError as exc:
         parser.error(str(exc))
 
-    chat = ChatDNA(settings.deepseek_api_key)
+    # Get first available API key (backward compatibility)
+    api_key = settings.deepseek_api_key or settings.openai_api_key
+    chat = ChatDNA(api_key)
 
     if args.question:
         print(chat.ask(args.question, args.dna_file))
