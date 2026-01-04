@@ -144,7 +144,9 @@ def test_convert_vcf_to_csv(vcf_file, tmp_path):
 def test_parse_empty_vcf(tmp_path):
     """Test parsing empty VCF."""
     empty_vcf = tmp_path / "empty.vcf"
-    empty_vcf.write_text("##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE1\n")
+    empty_vcf.write_text(
+        "##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE1\n"
+    )
 
     parser = VCFParser(empty_vcf)
     df = parser.parse()

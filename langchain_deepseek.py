@@ -80,4 +80,3 @@ class ChatDeepSeek:
                 self.content = content
 
         return Result(content)
-

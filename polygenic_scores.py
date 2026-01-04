@@ -22,9 +22,7 @@ class SNPWeight(BaseModel):
     rsid: str
     risk_allele: str
     weight: float
-    effect_size: float = Field(
-        default=0.0, description="Effect size (e.g., odds ratio or beta)"
-    )
+    effect_size: float = Field(default=0.0, description="Effect size (e.g., odds ratio or beta)")
 
 
 class PolygenicScore(BaseModel):
@@ -119,9 +117,7 @@ class PolygenicScoreCalculator:
         self._scores["alzheimers_risk"] = alzheimers_prs
         self._scores["type2_diabetes_risk"] = diabetes_prs
 
-    def calculate(
-        self, score_name: str, genotype_data: pd.DataFrame
-    ) -> PRSResult:
+    def calculate(self, score_name: str, genotype_data: pd.DataFrame) -> PRSResult:
         """Calculate a polygenic risk score.
 
         Parameters
@@ -168,17 +164,13 @@ class PolygenicScoreCalculator:
 
         # Normalize score (mean=0, std=1 in population)
         # This is a simplified normalization
-        normalized_score = (raw_score - prs_def.baseline_risk) / max(
-            1.0, len(prs_def.snp_weights)
-        )
+        normalized_score = (raw_score - prs_def.baseline_risk) / max(1.0, len(prs_def.snp_weights))
 
         # Estimate percentile (simplified - assumes normal distribution)
         percentile = self._score_to_percentile(normalized_score)
 
         # Generate interpretation
-        interpretation = self._interpret_score(
-            score_name, normalized_score, percentile
-        )
+        interpretation = self._interpret_score(score_name, normalized_score, percentile)
 
         return PRSResult(
             score_name=score_name,
@@ -221,9 +213,7 @@ class PolygenicScoreCalculator:
         else:
             return 97.5
 
-    def _interpret_score(
-        self, score_name: str, normalized_score: float, percentile: float
-    ) -> str:
+    def _interpret_score(self, score_name: str, normalized_score: float, percentile: float) -> str:
         """Generate interpretation for a score.
 
         Parameters

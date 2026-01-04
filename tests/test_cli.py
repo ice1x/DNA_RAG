@@ -11,7 +11,11 @@ def test_cli_ask(tmp_path, monkeypatch, capsys):
     responses = [
         {
             "choices": [
-                {"message": {"content": '{"rs1": {"gene": "GENE", "chromosome": "1", "position": 111}}'}}
+                {
+                    "message": {
+                        "content": '{"rs1": {"gene": "GENE", "chromosome": "1", "position": 111}}'
+                    }
+                }
             ]
         },
         {"choices": [{"message": {"content": "cli answer"}}]},
@@ -28,15 +32,18 @@ def test_cli_ask(tmp_path, monkeypatch, capsys):
 
     monkeypatch.setattr("langchain_deepseek.requests.post", fake_post)
     monkeypatch.setenv("API_KEY", "test")
-    monkeypatch.setattr(sys, "argv", [
-        "cli",
-        "--dna-file",
-        str(dna_file),
-        "--question",
-        "hi",
-    ])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "cli",
+            "--dna-file",
+            str(dna_file),
+            "--question",
+            "hi",
+        ],
+    )
 
     cli.main()
     captured = capsys.readouterr()
     assert "cli answer" in captured.out
-

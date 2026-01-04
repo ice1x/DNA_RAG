@@ -174,9 +174,7 @@ def test_dotenv_loading(clean_env, tmp_path, monkeypatch):
     """Test loading from .env file."""
     # Create .env file
     env_file = tmp_path / ".env"
-    env_file.write_text(
-        "DEEPSEEK_API_KEY=from_dotenv\nDNA_RAG_CACHE_TTL=9999\n"
-    )
+    env_file.write_text("DEEPSEEK_API_KEY=from_dotenv\nDNA_RAG_CACHE_TTL=9999\n")
 
     # Change to tmp directory
     monkeypatch.chdir(tmp_path)

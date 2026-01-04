@@ -65,9 +65,7 @@ def test_conversation_history(enhanced_chat, sample_dna_file_enhanced):
     """Test conversation history tracking."""
     with patch.object(enhanced_chat, "llm") as mock_llm:
         mock_response = Mock()
-        mock_response.content = (
-            "INTERPRETATION: Test response\nCONFIDENCE: 0.5\nCAVEATS: None"
-        )
+        mock_response.content = "INTERPRETATION: Test response\nCONFIDENCE: 0.5\nCAVEATS: None"
         mock_llm.return_value = mock_response
 
         enhanced_chat.ask("question 1", sample_dna_file_enhanced)
@@ -82,15 +80,11 @@ def test_structured_output(enhanced_chat, sample_dna_file_enhanced):
     with patch.object(enhanced_chat, "llm") as mock_llm:
         mock_response = Mock()
         mock_response.content = (
-            "INTERPRETATION: Structured test\n"
-            "CONFIDENCE: 0.9\n"
-            "CAVEATS: Caveat 1; Caveat 2"
+            "INTERPRETATION: Structured test\n" "CONFIDENCE: 0.9\n" "CAVEATS: Caveat 1; Caveat 2"
         )
         mock_llm.return_value = mock_response
 
-        result = enhanced_chat.ask(
-            "test", sample_dna_file_enhanced, return_structured=True
-        )
+        result = enhanced_chat.ask("test", sample_dna_file_enhanced, return_structured=True)
 
         assert isinstance(result, InterpretationResult)
         assert result.interpretation != ""
@@ -105,9 +99,7 @@ def test_snp_validation_disabled(enhanced_chat, sample_dna_file_enhanced):
         mock_response.content = "INTERPRETATION: Test\nCONFIDENCE: 0.5\nCAVEATS: None"
         mock_llm.return_value = mock_response
 
-        result = enhanced_chat.ask(
-            "test", sample_dna_file_enhanced, return_structured=True
-        )
+        result = enhanced_chat.ask("test", sample_dna_file_enhanced, return_structured=True)
 
         # Should work without validation
         assert isinstance(result, InterpretationResult)

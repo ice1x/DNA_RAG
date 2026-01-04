@@ -126,9 +126,7 @@ class ChatDNA:
             msg = f"Invalid SNP response structure: {exc}"
             logger.error(msg)
             raise ValueError(msg) from exc
-        return {
-            rsid: info.model_dump(exclude_none=True) for rsid, info in model.root.items()
-        }
+        return {rsid: info.model_dump(exclude_none=True) for rsid, info in model.root.items()}
 
     def _get_snp_dict(self, question: str) -> Dict[str, Dict[str, str]]:
         """Query the LLM for SNP identifiers related to *question*.

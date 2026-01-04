@@ -109,9 +109,7 @@ def test_search_with_similarity_threshold(vector_store):
     )
 
     # High threshold should filter results
-    results = vector_store.search(
-        "completely different topic", n_results=5, min_similarity=0.9
-    )
+    results = vector_store.search("completely different topic", n_results=5, min_similarity=0.9)
 
     # Should have very few or no results
     assert len(results) >= 0

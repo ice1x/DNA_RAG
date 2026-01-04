@@ -147,9 +147,7 @@ class ChatDNAEnhanced:
         conv_key = str(dna_file)
         if conv_key not in self._conversations:
             self._conversations[conv_key] = []
-        self._conversations[conv_key].append(
-            ConversationMessage(role="user", content=question)
-        )
+        self._conversations[conv_key].append(ConversationMessage(role="user", content=question))
 
         # Check cache
         answers_for_file = self._answer_cache.setdefault(file_hash, {})
@@ -241,9 +239,7 @@ class ChatDNAEnhanced:
         """
         return self._conversations.get(str(dna_file), [])
 
-    def _get_snps_from_vector_store(
-        self, question: str
-    ) -> Dict[str, Dict[str, str | int | float]]:
+    def _get_snps_from_vector_store(self, question: str) -> Dict[str, Dict[str, str | int | float]]:
         """Get relevant SNPs using vector store RAG.
 
         Parameters
@@ -261,9 +257,7 @@ class ChatDNAEnhanced:
 
         return self._vector_store.search(question, n_results=10, min_similarity=0.3)
 
-    def _get_snps_from_llm(
-        self, question: str
-    ) -> Dict[str, Dict[str, str | int | float]]:
+    def _get_snps_from_llm(self, question: str) -> Dict[str, Dict[str, str | int | float]]:
         """Get SNPs using LLM (legacy method).
 
         Parameters
@@ -441,9 +435,7 @@ CAVEATS: [caveat 1]; [caveat 2]; ...
         for line in response.split("\n"):
             if line.startswith("CONFIDENCE:"):
                 try:
-                    score = float(
-                        line.replace("CONFIDENCE:", "").strip().split()[0]
-                    )
+                    score = float(line.replace("CONFIDENCE:", "").strip().split()[0])
                     return max(0.0, min(1.0, score))
                 except (ValueError, IndexError):
                     pass

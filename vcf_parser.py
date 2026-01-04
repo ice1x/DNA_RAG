@@ -150,9 +150,7 @@ class VCFParser:
             return None
 
     @staticmethod
-    def _extract_genotype(
-        format_field: str, sample: str, ref: str, alt: str
-    ) -> Optional[str]:
+    def _extract_genotype(format_field: str, sample: str, ref: str, alt: str) -> Optional[str]:
         """Extract genotype from FORMAT and sample fields.
 
         Parameters
@@ -199,9 +197,7 @@ class VCFParser:
                 "1": alt.split(",")[0][0] if alt else "N",
             }
 
-            genotype_bases = "".join(
-                [allele_map.get(a, "N") for a in alleles if a in allele_map]
-            )
+            genotype_bases = "".join([allele_map.get(a, "N") for a in alleles if a in allele_map])
 
             if len(genotype_bases) != 2:
                 return None
