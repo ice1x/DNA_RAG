@@ -9,3 +9,4 @@ requests==2.31.0
 PyVCF3==1.0.3
 cachetools==5.3.2
 python-dotenv==1.0.0
+numpy<2.0  # ChromaDB 0.4.22 incompatible with NumPy 2.0
