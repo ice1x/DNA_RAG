@@ -2,3 +2,8 @@ pytest
 pytest-cov
 coverage
 pydantic==2.9.2
+black==24.1.1
+ruff==0.1.15
+mypy==1.8.0
+types-requests
+pre-commit==3.6.0
