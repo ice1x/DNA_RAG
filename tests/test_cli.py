@@ -11,7 +11,11 @@ def test_cli_ask(tmp_path, monkeypatch, capsys):
     responses = [
         {
             "choices": [
-                {"message": {"content": '{"rs1": {"gene": "GENE", "chromosome": "1", "position": 111}}'}}
+                {
+                    "message": {
+                        "content": '{"rs1": {"gene": "GENE", "chromosome": "1", "position": 111}}'
+                    }
+                }
             ]
         },
         {"choices": [{"message": {"content": "cli answer"}}]},
@@ -27,16 +31,23 @@ def test_cli_ask(tmp_path, monkeypatch, capsys):
         return mock_resp
 
     monkeypatch.setattr("langchain_deepseek.requests.post", fake_post)
-    monkeypatch.setenv("API_KEY", "test")
-    monkeypatch.setattr(sys, "argv", [
-        "cli",
-        "--dna-file",
-        str(dna_file),
-        "--question",
-        "hi",
-    ])
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test")
+    # Reload config to pick up the new environment variable
+    import config
+
+    config.reload_settings()
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "cli",
+            "--dna-file",
+            str(dna_file),
+            "--question",
+            "hi",
+        ],
+    )
 
     cli.main()
     captured = capsys.readouterr()
     assert "cli answer" in captured.out
-

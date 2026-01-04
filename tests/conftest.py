@@ -9,6 +9,20 @@ TESTS = ROOT / "tests"
 sys.path.extend([str(ROOT), str(TESTS)])
 
 
+@pytest.fixture(autouse=True)
+def reset_chromadb():
+    """Reset ChromaDB singleton between tests to avoid settings conflicts."""
+    yield
+    # Clean up ChromaDB singleton after each test
+    try:
+        import chromadb.api.client
+
+        # Clear the internal singleton dictionary
+        chromadb.api.client.SharedSystemClient._identifer_to_system = {}
+    except (ImportError, AttributeError):
+        pass
+
+
 @pytest.fixture
 def sample_dna_file(tmp_path: Path) -> Path:
     """Create a small DNA CSV file for testing."""

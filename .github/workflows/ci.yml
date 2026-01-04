@@ -1,0 +1,140 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, claude/* ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Free disk space
+      run: |
+        # Remove unnecessary packages to free up ~10GB
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/boost
+        sudo apt-get clean
+
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Install CPU-only PyTorch first to avoid GPU packages (saves ~3GB)
+        pip install torch --index-url https://download.pytorch.org/whl/cpu
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run Black
+      run: black --check .
+
+    - name: Run Ruff
+      run: ruff check .
+
+    - name: Run MyPy
+      run: mypy *.py
+      continue-on-error: true  # MyPy может быть строгим, пока не фиксируем все ошибки
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Free disk space
+      run: |
+        # Remove unnecessary packages to free up ~10GB
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/boost
+        sudo apt-get clean
+
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Install CPU-only PyTorch first to avoid GPU packages (saves ~3GB)
+        pip install torch --index-url https://download.pytorch.org/whl/cpu
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run tests with coverage
+      run: |
+        pytest --cov=. --cov-report=xml --cov-report=term-missing
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      if: matrix.python-version == '3.10'
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    - name: Free disk space
+      run: |
+        # Remove unnecessary packages to free up ~10GB
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/boost
+        sudo apt-get clean
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Install CPU-only PyTorch first to avoid GPU packages (saves ~3GB)
+        pip install torch --index-url https://download.pytorch.org/whl/cpu
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run integration tests
+      run: |
+        pytest tests/ -v -m "not slow"
+      continue-on-error: true

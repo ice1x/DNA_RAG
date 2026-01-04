@@ -1,18 +1,16 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Dict, Tuple
-
 import hashlib
 import json
 import logging
+from pathlib import Path
 
 import pandas as pd
-from pandas import DataFrame
-from langchain_deepseek import ChatDeepSeek
 from langchain.schema import HumanMessage
+from pandas import DataFrame
 from pydantic import BaseModel, RootModel, ValidationError
 
+from langchain_deepseek import ChatDeepSeek
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +22,7 @@ class SNPInfo(BaseModel):
     trait: str | None = None
 
 
-class SNPResponse(RootModel[Dict[str, SNPInfo]]):
+class SNPResponse(RootModel[dict[str, SNPInfo]]):
     pass
 
 
@@ -46,9 +44,9 @@ class ChatDNA:
             max_retries=2,
             api_key=api_key,
         )
-        self._dna_cache: Dict[Path, Tuple[str, DataFrame]] = {}
-        self._snp_cache: Dict[str, Dict[str, Dict[str, str]]] = {}
-        self._answer_cache: Dict[str, Dict[str, str]] = {}
+        self._dna_cache: dict[Path, tuple[str, DataFrame]] = {}
+        self._snp_cache: dict[str, dict[str, dict[str, str]]] = {}
+        self._answer_cache: dict[str, dict[str, str]] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -94,7 +92,7 @@ class ChatDNA:
     # Internal helpers
     # ------------------------------------------------------------------
     @staticmethod
-    def _parse_snp_json(response: str) -> Dict[str, Dict[str, str]]:
+    def _parse_snp_json(response: str) -> dict[str, dict[str, str]]:
         """Parse and validate SNP JSON returned by the LLM.
 
         Parameters
@@ -126,11 +124,9 @@ class ChatDNA:
             msg = f"Invalid SNP response structure: {exc}"
             logger.error(msg)
             raise ValueError(msg) from exc
-        return {
-            rsid: info.model_dump(exclude_none=True) for rsid, info in model.root.items()
-        }
+        return {rsid: info.model_dump(exclude_none=True) for rsid, info in model.root.items()}
 
-    def _get_snp_dict(self, question: str) -> Dict[str, Dict[str, str]]:
+    def _get_snp_dict(self, question: str) -> dict[str, dict[str, str]]:
         """Query the LLM for SNP identifiers related to *question*.
 
         The LLM is expected to return a JSON dictionary mapping RSIDs to
@@ -188,12 +184,12 @@ class ChatDNA:
 
         cached = self._dna_cache.get(dna_file)
         if cached is None or cached[0] != file_hash:
-            read_csv_kwargs = dict(
-                comment="#",
-                delimiter=",",
-                names=["RSID", "CHROMOSOME", "POSITION", "GENOTYPE"],
-                compression="infer",
-            )
+            read_csv_kwargs = {
+                "comment": "#",
+                "delimiter": ",",
+                "names": ["RSID", "CHROMOSOME", "POSITION", "GENOTYPE"],
+                "compression": "infer",
+            }
             # Stream large files in chunks to avoid excessive memory use
             if dna_file.stat().st_size > 50 * 1024 * 1024:  # >50MB
                 chunks = pd.read_csv(dna_file, chunksize=100_000, **read_csv_kwargs)
@@ -203,7 +199,7 @@ class ChatDNA:
             self._dna_cache[dna_file] = (file_hash, df)
         return self._dna_cache[dna_file][1]
 
-    def _filter_snps(self, df: DataFrame, snp_dict: Dict[str, Dict[str, str]]) -> DataFrame:
+    def _filter_snps(self, df: DataFrame, snp_dict: dict[str, dict[str, str]]) -> DataFrame:
         """Return rows from *df* whose RSIDs appear in *snp_dict*.
 
         The returned frame contains the original DNA information merged with

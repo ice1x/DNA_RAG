@@ -8,10 +8,10 @@ via command-line arguments or multiple questions in an interactive mode.
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 
 from chat_dna import ChatDNA
+from config import get_settings
 
 
 def main() -> None:
@@ -33,10 +33,15 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    api_key = os.environ.get("API_KEY")
-    if not api_key:
-        parser.error("API_KEY environment variable is not set")
+    # Load configuration from environment
+    settings = get_settings()
+    try:
+        settings.validate_api_keys()
+    except ValueError as exc:
+        parser.error(str(exc))
 
+    # Get first available API key (backward compatibility)
+    api_key = settings.deepseek_api_key or settings.openai_api_key
     chat = ChatDNA(api_key)
 
     if args.question:
@@ -56,4 +61,3 @@ def main() -> None:
 
 if __name__ == "__main__":  # pragma: no cover - manual invocation
     main()
-
