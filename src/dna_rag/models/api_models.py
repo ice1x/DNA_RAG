@@ -32,9 +32,7 @@ class DNAQuestionResponse(BaseModel):
 
     question: str = Field(..., description="The question that was asked")
     answer: str = Field(..., description="Answer to the question")
-    provider: str | None = Field(
-        default=None, description="LLM provider used for the answer"
-    )
+    provider: str | None = Field(default=None, description="LLM provider used for the answer")
 
 
 class EnhancedDNAQuestionResponse(BaseModel):
@@ -42,21 +40,13 @@ class EnhancedDNAQuestionResponse(BaseModel):
 
     question: str = Field(..., description="The question that was asked")
     interpretation: str = Field(..., description="Interpretation of DNA data")
-    confidence: float = Field(
-        ..., ge=0.0, le=1.0, description="Confidence score (0-1)"
-    )
-    snps_found: list[SNPResult] = Field(
-        default_factory=list, description="SNPs found in the data"
-    )
-    sources: list[str] = Field(
-        default_factory=list, description="Source citations"
-    )
+    confidence: float = Field(..., ge=0.0, le=1.0, description="Confidence score (0-1)")
+    snps_found: list[SNPResult] = Field(default_factory=list, description="SNPs found in the data")
+    sources: list[str] = Field(default_factory=list, description="Source citations")
     caveats: list[str] = Field(
         default_factory=list, description="Important caveats and limitations"
     )
-    provider: str | None = Field(
-        default=None, description="LLM provider used for the answer"
-    )
+    provider: str | None = Field(default=None, description="LLM provider used for the answer")
 
 
 class SNPResult(BaseModel):
@@ -66,9 +56,7 @@ class SNPResult(BaseModel):
     genotype: str = Field(..., description="Genotype (e.g., AA, AG, GG)")
     gene: str | None = Field(default=None, description="Associated gene")
     trait: str | None = Field(default=None, description="Associated trait")
-    validated: bool = Field(
-        default=False, description="Whether SNP was validated via dbSNP"
-    )
+    validated: bool = Field(default=False, description="Whether SNP was validated via dbSNP")
     similarity: float = Field(
         default=0.0, ge=0.0, le=1.0, description="Similarity score from vector store"
     )
@@ -108,9 +96,7 @@ class HealthCheckResponse(BaseModel):
 
     status: str = Field(..., description="Service status")
     version: str = Field(..., description="API version")
-    providers: dict[str, Any] = Field(
-        default_factory=dict, description="Available LLM providers"
-    )
+    providers: dict[str, Any] = Field(default_factory=dict, description="Available LLM providers")
 
 
 class ErrorResponse(BaseModel):

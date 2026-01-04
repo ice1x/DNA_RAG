@@ -70,9 +70,7 @@ def client(
     """Create test client with mocked dependencies."""
     with patch("dna_rag.api.app.get_settings", return_value=mock_settings):
         with patch("dna_rag.api.app.ChatDNA", return_value=mock_chat_dna):
-            with patch(
-                "dna_rag.api.app.ChatDNAEnhanced", return_value=mock_chat_dna_enhanced
-            ):
+            with patch("dna_rag.api.app.ChatDNAEnhanced", return_value=mock_chat_dna_enhanced):
                 from dna_rag.api.app import app
 
                 # Set global instances
@@ -110,9 +108,7 @@ def test_ask_dna_question_success(
     client: TestClient, sample_dna_data: str, mock_chat_dna: MagicMock
 ) -> None:
     """Test successful DNA question."""
-    request = DNAQuestionRequest(
-        question="Am I lactose intolerant?", dna_data=sample_dna_data
-    )
+    request = DNAQuestionRequest(question="Am I lactose intolerant?", dna_data=sample_dna_data)
 
     response = client.post("/ask", json=request.model_dump())
     assert response.status_code == 200
@@ -128,9 +124,7 @@ def test_ask_dna_question_success(
 
 def test_ask_dna_question_invalid_csv(client: TestClient) -> None:
     """Test DNA question with invalid CSV data."""
-    request = DNAQuestionRequest(
-        question="Am I lactose intolerant?", dna_data="invalid,csv,data"
-    )
+    request = DNAQuestionRequest(question="Am I lactose intolerant?", dna_data="invalid,csv,data")
 
     response = client.post("/ask", json=request.model_dump())
     assert response.status_code == 400
@@ -178,9 +172,7 @@ def test_ask_enhanced_success(
 
 def test_polygenic_score_success(client: TestClient, sample_dna_data: str) -> None:
     """Test polygenic score calculation."""
-    with patch(
-        "dna_rag.api.app.PolygenicScoreCalculator"
-    ) as mock_calculator_class:
+    with patch("dna_rag.api.app.PolygenicScoreCalculator") as mock_calculator_class:
         mock_calculator = MagicMock()
         mock_calculator.calculate_score.return_value = {
             "score": 1.25,
@@ -189,9 +181,7 @@ def test_polygenic_score_success(client: TestClient, sample_dna_data: str) -> No
         }
         mock_calculator_class.return_value = mock_calculator
 
-        request = PolygenicScoreRequest(
-            score_name="alzheimers_risk", dna_data=sample_dna_data
-        )
+        request = PolygenicScoreRequest(score_name="alzheimers_risk", dna_data=sample_dna_data)
 
         response = client.post("/polygenic-score", json=request.model_dump())
         assert response.status_code == 200
@@ -208,28 +198,20 @@ def test_polygenic_score_success(client: TestClient, sample_dna_data: str) -> No
 
 def test_polygenic_score_invalid_data(client: TestClient) -> None:
     """Test polygenic score with invalid DNA data."""
-    request = PolygenicScoreRequest(
-        score_name="alzheimers_risk", dna_data="invalid,csv"
-    )
+    request = PolygenicScoreRequest(score_name="alzheimers_risk", dna_data="invalid,csv")
 
     response = client.post("/polygenic-score", json=request.model_dump())
     assert response.status_code == 400
 
 
-def test_polygenic_score_unknown_score(
-    client: TestClient, sample_dna_data: str
-) -> None:
+def test_polygenic_score_unknown_score(client: TestClient, sample_dna_data: str) -> None:
     """Test polygenic score with unknown score name."""
-    with patch(
-        "dna_rag.api.app.PolygenicScoreCalculator"
-    ) as mock_calculator_class:
+    with patch("dna_rag.api.app.PolygenicScoreCalculator") as mock_calculator_class:
         mock_calculator = MagicMock()
         mock_calculator.calculate_score.side_effect = KeyError("unknown_score")
         mock_calculator_class.return_value = mock_calculator
 
-        request = PolygenicScoreRequest(
-            score_name="unknown_score", dna_data=sample_dna_data
-        )
+        request = PolygenicScoreRequest(score_name="unknown_score", dna_data=sample_dna_data)
 
         response = client.post("/polygenic-score", json=request.model_dump())
         assert response.status_code == 400
