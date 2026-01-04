@@ -15,7 +15,12 @@ def clean_env(monkeypatch):
     # Remove all DNA_RAG related env vars
     env_vars = list(os.environ.keys())
     for key in env_vars:
-        if key.startswith("DNA_RAG_") or key == "DEEPSEEK_API_KEY" or key == "API_KEY":
+        if (
+            key.startswith("DNA_RAG_")
+            or key == "DEEPSEEK_API_KEY"
+            or key == "OPENAI_API_KEY"
+            or key == "API_KEY"
+        ):
             monkeypatch.delenv(key, raising=False)
     # Force reload settings after cleaning environment
     reload_settings()
@@ -32,9 +37,11 @@ def test_settings_defaults(clean_env):
     assert settings.embedding_model == "all-MiniLM-L6-v2"
     assert settings.use_vector_store is True
     assert settings.use_validation is True
-    assert settings.llm_model == "deepseek-r1:free"
     assert settings.llm_temperature == 0.0
     assert settings.llm_max_retries == 2
+    assert settings.openai_model == "gpt-4o-mini"
+    assert settings.deepseek_model == "deepseek-chat"
+    assert settings.llm_providers == "openai,deepseek"
 
 
 def test_settings_from_env(clean_env, monkeypatch):
@@ -54,21 +61,21 @@ def test_settings_from_env(clean_env, monkeypatch):
     assert settings.use_vector_store is False
 
 
-def test_validate_api_key_success(clean_env, monkeypatch):
-    """Test API key validation success."""
+def test_validate_api_keys_success(clean_env, monkeypatch):
+    """Test API key validation success with at least one key."""
     monkeypatch.setenv("DEEPSEEK_API_KEY", "test_key")
     settings = DNARAGSettings()
 
     # Should not raise
-    settings.validate_api_key()
+    settings.validate_api_keys()
 
 
-def test_validate_api_key_missing(clean_env):
-    """Test API key validation failure."""
+def test_validate_api_keys_missing(clean_env):
+    """Test API key validation failure when no keys are set."""
     settings = DNARAGSettings()
 
-    with pytest.raises(ValueError, match="DEEPSEEK_API_KEY"):
-        settings.validate_api_key()
+    with pytest.raises(ValueError, match="No LLM provider API keys configured"):
+        settings.validate_api_keys()
 
 
 def test_get_vector_store_path(clean_env, tmp_path, monkeypatch):
