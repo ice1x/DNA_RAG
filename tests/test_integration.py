@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from chat_dna_enhanced import ChatDNAEnhanced, InterpretationResult
-from polygenic_scores import PolygenicScoreCalculator
+from dna_rag.utils.polygenic_scores import PolygenicScoreCalculator
 
 
 @pytest.fixture

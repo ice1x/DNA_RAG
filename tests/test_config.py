@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from config import DNARAGSettings, get_settings, reload_settings
+from dna_rag.core.config import DNARAGSettings, get_settings, reload_settings
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from fake_llm import FakeLLM
 
-from chat_dna import ChatDNA
+from dna_rag.core.chat_dna import ChatDNA
 
 
 def test_chat_dna_load_and_filter(sample_dna_file):

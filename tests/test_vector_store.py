@@ -2,7 +2,7 @@
 
 import pytest
 
-from vector_store import SNPVectorStore, create_sample_snp_database
+from dna_rag.utils.vector_store import SNPVectorStore, create_sample_snp_database
 
 
 @pytest.fixture

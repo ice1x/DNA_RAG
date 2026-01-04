@@ -1,11 +1,58 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dna-rag"
+version = "0.1.0"
+description = "A toolkit for analyzing DNA data with language models"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+dependencies = [
+    "pandas>=2.2.3",
+    "langchain>=0.3.19",
+    "langchain-community>=0.3.18",
+    "pydantic>=2.9.2",
+    "pydantic-settings>=2.6.1",
+    "chromadb>=0.4.22",
+    "sentence-transformers>=2.3.1",
+    "requests>=2.31.0",
+    "PyVCF3>=1.0.3",
+    "cachetools>=5.3.2",
+    "python-dotenv>=1.0.0",
+    "numpy<2.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.5.0",
+    "httpx>=0.27.2",
+]
+
+[project.scripts]
+dna-rag = "scripts.cli:main"
+dna-rag-enhanced = "scripts.cli_enhanced:main"
+
+[tool.setuptools]
+packages = ["dna_rag"]
+package-dir = {"" = "src"}
+
 [tool.pytest.ini_options]
-addopts = "--cov=. --cov-report=term-missing --cov-fail-under=65 --ignore=manual_PoC"
+addopts = "--cov=src --cov-report=term-missing --cov-fail-under=65 --ignore=manual_PoC"
 testpaths = ["tests"]
 
 [tool.coverage.run]
 branch = true
-source = ["."]
-omit = ["tests/*", "manual_PoC/*", "*/conftest.py", "cli_enhanced.py"]
+source = ["src"]
+omit = ["tests/*", "manual_PoC/*", "*/conftest.py", "scripts/cli_enhanced.py"]
 
 [tool.coverage.report]
 show_missing = true
