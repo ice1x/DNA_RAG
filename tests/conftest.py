@@ -17,7 +17,8 @@ def reset_chromadb():
     try:
         import chromadb.api.client
 
-        chromadb.api.client.SharedSystemClient.clear()
+        # Clear the internal singleton dictionary
+        chromadb.api.client.SharedSystemClient._identifer_to_system = {}
     except (ImportError, AttributeError):
         pass
 
