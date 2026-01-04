@@ -41,12 +41,33 @@ pip install -r requirements-dev.txt
 pre-commit install
 ```
 
+## Configuration
+
+DNA_RAG uses environment variables for configuration. The easiest way is to create a `.env` file:
+
+```bash
+# Copy example configuration
+cp .env.example .env
+
+# Edit .env and set your API key
+DEEPSEEK_API_KEY=your_actual_api_key_here
+```
+
+**Key Configuration Options:**
+- `DEEPSEEK_API_KEY` (required): Your DeepSeek API key
+- `DNA_RAG_USE_VECTOR_STORE`: Enable RAG (default: true)
+- `DNA_RAG_USE_VALIDATION`: Enable SNP validation (default: true)
+- `DNA_RAG_VECTOR_STORE_PATH`: Vector store directory (default: ./data/vector_store)
+
+For complete configuration guide, see [CONFIGURATION.md](CONFIGURATION.md)
+
 ## Usage
 
 ### Basic Usage (Original)
 
 ```bash
-export API_KEY="your-deepseek-api-key"
+# Set API key (or use .env file)
+export DEEPSEEK_API_KEY="your-deepseek-api-key"
 python cli.py --dna-file path/to/dna.csv --question "lactose tolerance"
 ```
 

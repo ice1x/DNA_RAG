@@ -8,10 +8,10 @@ via command-line arguments or multiple questions in an interactive mode.
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
 
 from chat_dna import ChatDNA
+from config import get_settings
 
 
 def main() -> None:
@@ -33,11 +33,14 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    api_key = os.environ.get("API_KEY")
-    if not api_key:
-        parser.error("API_KEY environment variable is not set")
+    # Load configuration from environment
+    settings = get_settings()
+    try:
+        settings.validate_api_key()
+    except ValueError as exc:
+        parser.error(str(exc))
 
-    chat = ChatDNA(api_key)
+    chat = ChatDNA(settings.deepseek_api_key)
 
     if args.question:
         print(chat.ask(args.question, args.dna_file))
