@@ -164,6 +164,8 @@ async def ask_dna_question(request: DNAQuestionRequest) -> DNAQuestionResponse:
             provider="deepseek",  # TODO: get actual provider from ChatDNA
         )
 
+    except HTTPException:
+        raise
     except pd.errors.ParserError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -257,6 +259,8 @@ async def ask_dna_question_enhanced(
             provider="deepseek",  # TODO: get actual provider
         )
 
+    except HTTPException:
+        raise
     except pd.errors.ParserError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -303,6 +307,14 @@ async def calculate_polygenic_score(
         # Parse DNA data from CSV string
         dna_df = pd.read_csv(io.StringIO(request.dna_data))
 
+        # Validate DNA data format
+        required_columns = ["rsid", "chromosome", "position", "genotype"]
+        if not all(col in dna_df.columns for col in required_columns):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"DNA data must contain columns: {required_columns}",
+            )
+
         # Calculate score
         calculator = PolygenicScoreCalculator()
         result = calculator.calculate_score(request.score_name, dna_df)
@@ -314,6 +326,8 @@ async def calculate_polygenic_score(
             percentile=result.get("percentile"),
         )
 
+    except HTTPException:
+        raise
     except pd.errors.ParserError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
