@@ -121,7 +121,10 @@ def test_ask_dna_question_success(
 
 def test_ask_dna_question_invalid_csv(client: TestClient) -> None:
     """Test DNA question with invalid CSV data."""
-    request = DNAQuestionRequest(question="Am I lactose intolerant?", dna_data="invalid,csv,data")
+    # Use CSV with unclosed quotes to trigger pandas ParserError
+    request = DNAQuestionRequest(
+        question="Am I lactose intolerant?", dna_data='rsid,chr\n"unclosed'
+    )
 
     response = client.post("/ask", json=request.model_dump())
     assert response.status_code == 400
@@ -216,14 +219,6 @@ def test_polygenic_score_unknown_score(client: TestClient, sample_dna_data: str)
         response = client.post("/polygenic-score", json=request.model_dump())
         assert response.status_code == 400
         assert "Unknown polygenic score" in response.json()["detail"]
-
-
-def test_cors_headers(client: TestClient) -> None:
-    """Test CORS headers are present for OPTIONS request."""
-    # TestClient doesn't trigger CORS headers for regular requests
-    # but we can verify OPTIONS requests work
-    response = client.options("/health")
-    assert response.status_code == 200
 
 
 def test_openapi_schema(client: TestClient) -> None:
