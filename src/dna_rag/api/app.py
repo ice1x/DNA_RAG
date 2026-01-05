@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import io
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator
+from typing import Any
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, status
@@ -167,13 +168,13 @@ async def ask_dna_question(request: DNAQuestionRequest) -> DNAQuestionResponse:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse DNA data: {str(e)}",
-        )
+        ) from e
     except Exception as e:
         logger.error(f"Error processing DNA question: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing request: {str(e)}",
-        )
+        ) from e
 
 
 @app.post(
@@ -260,13 +261,13 @@ async def ask_dna_question_enhanced(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse DNA data: {str(e)}",
-        )
+        ) from e
     except Exception as e:
         logger.error(f"Error processing enhanced DNA question: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing request: {str(e)}",
-        )
+        ) from e
 
 
 @app.post(
@@ -317,18 +318,18 @@ async def calculate_polygenic_score(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to parse DNA data: {str(e)}",
-        )
+        ) from e
     except KeyError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Unknown polygenic score: {request.score_name}",
-        )
+        ) from e
     except Exception as e:
         logger.error(f"Error calculating polygenic score: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error calculating score: {str(e)}",
-        )
+        ) from e
 
 
 if __name__ == "__main__":

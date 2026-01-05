@@ -4,14 +4,12 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
 from dna_rag.core.chat_dna_enhanced import InterpretationResult, SNPResult
 from dna_rag.models.api_models import (
     DNAQuestionRequest,
-    EnhancedDNAQuestionResponse,
     PolygenicScoreRequest,
 )
 
@@ -71,10 +69,9 @@ def client(
     with patch("dna_rag.api.app.get_settings", return_value=mock_settings):
         with patch("dna_rag.api.app.ChatDNA", return_value=mock_chat_dna):
             with patch("dna_rag.api.app.ChatDNAEnhanced", return_value=mock_chat_dna_enhanced):
-                from dna_rag.api.app import app
-
                 # Set global instances
                 import dna_rag.api.app as app_module
+                from dna_rag.api.app import app
 
                 app_module.chat_dna = mock_chat_dna
                 app_module.chat_dna_enhanced = mock_chat_dna_enhanced
