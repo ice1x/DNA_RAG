@@ -42,8 +42,10 @@ dna-rag = "scripts.cli:main"
 dna-rag-enhanced = "scripts.cli_enhanced:main"
 
 [tool.setuptools]
-packages = ["dna_rag"]
 package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 addopts = "--cov=src --cov-report=term-missing --cov-fail-under=65 --ignore=manual_PoC"
