@@ -44,6 +44,8 @@ jobs:
         pip install torch --index-url https://download.pytorch.org/whl/cpu
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
+        # Install package in editable mode
+        pip install -e .
 
     - name: Run Black
       run: black --check .
@@ -92,10 +94,12 @@ jobs:
         pip install torch --index-url https://download.pytorch.org/whl/cpu
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
+        # Install package in editable mode
+        pip install -e .
 
     - name: Run tests with coverage
       run: |
-        pytest --cov=. --cov-report=xml --cov-report=term-missing
+        pytest --cov=src --cov-report=xml --cov-report=term-missing
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -133,6 +137,8 @@ jobs:
         pip install torch --index-url https://download.pytorch.org/whl/cpu
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
+        # Install package in editable mode
+        pip install -e .
 
     - name: Run integration tests
       run: |

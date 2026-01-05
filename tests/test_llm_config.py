@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from config import DNARAGSettings, reload_settings
+from dna_rag.core.config import DNARAGSettings, reload_settings
 
 
 @pytest.fixture

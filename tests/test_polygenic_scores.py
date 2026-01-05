@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from polygenic_scores import PolygenicScore, PolygenicScoreCalculator, SNPWeight
+from dna_rag.utils.polygenic_scores import PolygenicScore, PolygenicScoreCalculator, SNPWeight
 
 
 @pytest.fixture

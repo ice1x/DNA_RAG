@@ -4,7 +4,7 @@ import gzip
 
 import pytest
 
-from vcf_parser import VCFParser, convert_vcf_to_csv
+from dna_rag.utils.vcf_parser import VCFParser, convert_vcf_to_csv
 
 
 @pytest.fixture

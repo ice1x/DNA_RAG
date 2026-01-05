@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from llm_providers import (
+from dna_rag.core.llm_providers import (
     DeepSeekProvider,
     LLMMessage,
     LLMProviderManager,

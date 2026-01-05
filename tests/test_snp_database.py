@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 import requests
 
-from snp_database import SNPDatabase, SNPValidationResult
+from dna_rag.utils.snp_database import SNPDatabase, SNPValidationResult
 
 
 @pytest.fixture
