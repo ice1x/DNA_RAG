@@ -15,12 +15,18 @@ from dna_rag.logging import get_logger
 from dna_rag.parsers.ancestrydna import AncestryDNAParser
 from dna_rag.parsers.myheritage import MyHeritageParser
 from dna_rag.parsers.twentythreeandme import TwentyThreeAndMeParser
+from dna_rag.parsers.vcf import VCFParser
 
 logger = get_logger(__name__)
 
 # Each parser class has static can_parse(Path)->bool and parse(Path)->DataFrame.
 # Order matters: most distinctive format first.
-_PARSERS: list[type] = [AncestryDNAParser, TwentyThreeAndMeParser, MyHeritageParser]
+_PARSERS: list[type] = [
+    VCFParser,
+    AncestryDNAParser,
+    TwentyThreeAndMeParser,
+    MyHeritageParser,
+]
 
 
 def detect_and_parse(file_path: Path) -> DataFrame:
@@ -52,5 +58,5 @@ def detect_and_parse(file_path: Path) -> DataFrame:
 
     raise UnsupportedFormatError(
         f"Could not detect DNA file format for: {file_path}. "
-        "Supported formats: 23andMe, AncestryDNA, MyHeritage."
+        "Supported formats: VCF, 23andMe, AncestryDNA, MyHeritage."
     )
