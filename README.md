@@ -1,292 +1,185 @@
-# DNA_RAG
+# DNA RAG
 
-A toolkit for analyzing DNA data with language models, featuring RAG (Retrieval-Augmented Generation), SNP validation, and polygenic risk scores.
+> Analyse your personal DNA data using Large Language Models.
 
-## Project Structure
+**DNA RAG** is a Python pipeline that answers questions about personal genetic data from consumer DNA testing services (23andMe, AncestryDNA, MyHeritage). It uses a two-step LLM approach:
 
-```
-DNA_RAG/
-├── src/
-│   └── dna_rag/
-│       ├── api/              # FastAPI endpoints
-│       │   ├── __init__.py
-│       │   └── app.py
-│       ├── core/             # Core business logic
-│       │   ├── __init__.py
-│       │   ├── chat_dna.py
-│       │   ├── chat_dna_enhanced.py
-│       │   ├── config.py
-│       │   └── llm_providers.py
-│       ├── models/           # Data models
-│       │   ├── __init__.py
-│       │   └── api_models.py
-│       └── utils/            # Utilities
-│           ├── __init__.py
-│           ├── langchain_deepseek.py
-│           ├── polygenic_scores.py
-│           ├── snp_database.py
-│           ├── vcf_parser.py
-│           └── vector_store.py
-├── scripts/                  # CLI scripts
-│   ├── cli.py
-│   ├── cli_enhanced.py
-│   └── run_api.py
-├── tests/                    # Test suite
-├── docs/                     # Documentation
-├── manual_PoC/              # Proof of concept files
-├── pyproject.toml
-├── requirements.txt
-└── README.md
+1. **SNP identification** -- the LLM determines which genetic variants (SNPs) are relevant to the user's question.
+2. **Interpretation** -- the user's DNA file is filtered for those variants, and the LLM interprets the matched genotypes.
+
+## Architecture
+
+```mermaid
+graph LR
+    Q["User question"] --> S1["Step 1: LLM identifies SNPs"]
+    S1 --> F["Filter DNA file by RSIDs"]
+    F --> S2["Step 2: LLM interprets genotypes"]
+    S2 --> R["AnalysisResult"]
+
+    DNA["DNA file<br/>(23andMe / Ancestry / MyHeritage)"] --> F
 ```
 
-## Features
+### Key Design Principles
 
-- **DNA Analysis**: Ask questions about your DNA data using LLMs
-- **RAG Integration**: Vector store for semantic SNP retrieval
-- **SNP Validation**: Validate SNPs against dbSNP database
-- **Polygenic Risk Scores**: Calculate risk scores for various conditions
-- **Multi-Provider Support**: OpenAI, DeepSeek, and more
-- **REST API**: FastAPI endpoints for web integration
-- **Type Safety**: Full type hints and Pydantic validation
+- **LLM-agnostic** -- each pipeline step can use a different LLM provider. Use a reasoning model for SNP identification and a cheaper model for interpretation.
+- **Pluggable** -- cache backends, LLM providers, and DNA parsers are all defined via Python Protocols and injected via constructor.
+- **Structured output** -- Pydantic models validate LLM responses and pipeline results.
+
+## Supported DNA Formats
+
+| Format | File type | Delimiter | Notes |
+|--------|-----------|-----------|-------|
+| 23andMe | `.txt` | Tab | Comment lines `#` |
+| AncestryDNA | `.txt` | Tab | Two allele columns merged |
+| MyHeritage | `.csv` | Comma | `RESULT` column renamed |
+
+Auto-detection reads the first few lines to identify the format.
 
 ## Installation
 
 ```bash
-# Clone repository
-git clone https://github.com/ice1x/DNA_RAG.git
-cd DNA_RAG
+# Core only
+pip install .
 
-# Install dependencies
-pip install -r requirements.txt
-pip install -r requirements-dev.txt  # For development
-
-# Install package in editable mode
-pip install -e .
+# With development tools
+pip install ".[dev]"
 ```
 
 ## Configuration
 
-Create a `.env` file:
+All settings are loaded from environment variables with the `DNA_RAG_` prefix, or from a `.env` file.
 
 ```bash
-# LLM Provider API Keys
-DNA_RAG_OPENAI_API_KEY=your_openai_key
-DNA_RAG_DEEPSEEK_API_KEY=your_deepseek_key
-
-# Provider Priority (comma-separated)
-DNA_RAG_LLM_PROVIDERS=openai,deepseek
-
-# Models
-DNA_RAG_OPENAI_MODEL=gpt-4o-mini
-DNA_RAG_DEEPSEEK_MODEL=deepseek-chat
-
-# Optional Settings
-DNA_RAG_USE_VECTOR_STORE=true
-DNA_RAG_USE_VALIDATION=true
-DNA_RAG_CACHE_TTL=3600
+cp .env.example .env
+# Edit .env with your API key
 ```
 
-See [CONFIGURATION.md](CONFIGURATION.md) for all available settings.
+### Core Settings
 
-## Usage
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DNA_RAG_LLM_API_KEY` | *required* | API key for the LLM provider |
+| `DNA_RAG_LLM_PROVIDER` | `deepseek` | `deepseek` or `openai_compat` |
+| `DNA_RAG_LLM_MODEL` | `deepseek-r1:free` | Model name |
+| `DNA_RAG_LLM_BASE_URL` | `https://api.deepseek.com/v1` | API base URL |
+| `DNA_RAG_LLM_TEMPERATURE` | `0.0` | Sampling temperature |
+| `DNA_RAG_LLM_TIMEOUT` | `60.0` | Request timeout (seconds) |
+| `DNA_RAG_LLM_MAX_RETRIES` | `3` | Max retries on failure |
 
-### Command Line Interface
+### Per-Step LLM (Optional)
 
-#### Basic Usage
+Use a separate LLM for the interpretation step:
+
+| Variable | Description |
+|----------|-------------|
+| `DNA_RAG_LLM_INTERP_PROVIDER` | Provider for interpretation step |
+| `DNA_RAG_LLM_INTERP_API_KEY` | Separate API key (falls back to primary) |
+| `DNA_RAG_LLM_INTERP_MODEL` | Model name for interpretation |
+| `DNA_RAG_LLM_INTERP_BASE_URL` | API URL for interpretation |
+
+### Cache & Logging
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DNA_RAG_CACHE_BACKEND` | `memory` | `memory` or `none` |
+| `DNA_RAG_CACHE_MAX_SIZE` | `1000` | Max entries per cache namespace |
+| `DNA_RAG_CACHE_TTL_SECONDS` | `3600` | Cache TTL in seconds |
+| `DNA_RAG_LOG_LEVEL` | `INFO` | Logging level |
+| `DNA_RAG_LOG_FORMAT` | `console` | `console` or `json` |
+
+## Quick Start
 
 ```bash
-# Ask a question about your DNA
-python scripts/cli.py --dna-file path/to/dna.csv --question "lactose tolerance"
+export DNA_RAG_LLM_API_KEY=your-key-here
 
-# Interactive mode
-python scripts/cli.py --dna-file path/to/dna.csv
-```
-
-#### Enhanced Mode (with RAG)
-
-```bash
-# Enhanced analysis with RAG and validation
-python scripts/cli_enhanced.py --dna-file path/to/dna.csv --question "eye color"
+# Single question
+dna-rag ask --dna-file path/to/dna.txt --question "lactose tolerance"
 
 # JSON output
-python scripts/cli_enhanced.py --dna-file path/to/dna.csv --question "eye color" --json
+dna-rag ask --dna-file path/to/dna.txt --question "lactose tolerance" --output-format json
 
-# Calculate polygenic risk score
-python scripts/cli_enhanced.py --dna-file path/to/dna.csv --prs alzheimers_risk
+# Interactive session
+dna-rag interactive --dna-file path/to/dna.txt
 ```
 
-### Python API
+## Python API
 
 ```python
 from pathlib import Path
-from dna_rag import ChatDNA
+from dna_rag import DNAAnalysisEngine, Settings
+from dna_rag.llm.deepseek import DeepSeekProvider
+from dna_rag.cache import InMemoryCache
 
-# Basic usage
-chat = ChatDNA(api_key="your-key")
-answer = chat.ask("lactose tolerance", Path("dna.csv"))
-print(answer)
+settings = Settings()  # reads DNA_RAG_* env vars
+engine = DNAAnalysisEngine(
+    snp_llm=DeepSeekProvider(settings),
+    cache=InMemoryCache(),
+)
 
-# Enhanced usage with RAG
-from dna_rag.core.chat_dna_enhanced import ChatDNAEnhanced
-
-chat = ChatDNAEnhanced(api_key="your-key")
-result = chat.ask("eye color", Path("dna.csv"))
-print(f"Interpretation: {result.interpretation}")
-print(f"Confidence: {result.confidence}")
-print(f"SNPs found: {len(result.snps_found)}")
+result = engine.analyze("lactose tolerance", Path("my_dna.txt"))
+print(result.interpretation)
+print(f"Matched {result.snp_count_matched}/{result.snp_count_requested} SNPs")
 ```
 
-### REST API
+### Per-Step LLM Selection
 
-#### Start the API server
+```python
+from dna_rag.llm.deepseek import DeepSeekProvider
+from dna_rag.llm.openai_compat import OpenAICompatProvider
 
-```bash
-# Development mode (with auto-reload)
-python scripts/run_api.py --reload
+# Reasoning model for SNP identification
+snp_settings = Settings(llm_model="deepseek-r1:free")
+# Cheaper model for interpretation
+interp_settings = Settings(
+    llm_provider="openai_compat",
+    llm_api_key="sk-...",
+    llm_model="gpt-4o-mini",
+    llm_base_url="https://api.openai.com/v1",
+)
 
-# Production mode (with multiple workers)
-python scripts/run_api.py --workers 4
+engine = DNAAnalysisEngine(
+    snp_llm=DeepSeekProvider(snp_settings),
+    interpretation_llm=OpenAICompatProvider(interp_settings),
+    cache=InMemoryCache(),
+)
 ```
 
-#### Use the API
+## Project Structure
 
-```bash
-# Health check
-curl http://localhost:8000/health
-
-# Ask a question
-curl -X POST "http://localhost:8000/ask" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "Am I lactose intolerant?",
-    "dna_data": "rsid,chromosome,position,genotype\nrs4988235,2,136608646,AG\n"
-  }'
-
-# Enhanced question with RAG
-curl -X POST "http://localhost:8000/ask-enhanced" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "Am I lactose intolerant?",
-    "dna_data": "rsid,chromosome,position,genotype\nrs4988235,2,136608646,AG\n",
-    "use_rag": true
-  }'
-
-# Calculate polygenic score
-curl -X POST "http://localhost:8000/polygenic-score" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "score_name": "alzheimers_risk",
-    "dna_data": "rsid,chromosome,position,genotype\nrs429358,19,45411941,CT\n"
-  }'
 ```
-
-#### Interactive API Documentation
-
-Visit http://localhost:8000/docs for Swagger UI or http://localhost:8000/redoc for ReDoc.
-
-See [docs/API.md](docs/API.md) for complete API documentation.
+src/dna_rag/
+    __init__.py          # Public API
+    config.py            # Pydantic Settings
+    engine.py            # Core 2-step pipeline
+    exceptions.py        # Exception hierarchy
+    models.py            # Pydantic data models
+    logging.py           # structlog configuration
+    cli.py               # Click CLI
+    cache/               # Cache protocol + in-memory implementation
+    llm/                 # LLM protocol + DeepSeek / OpenAI-compat providers
+    parsers/             # DNA file parsers (23andMe, AncestryDNA, MyHeritage)
+```
 
 ## Development
 
-### Running Tests
-
 ```bash
-# Run all tests
+# Install in editable mode with dev tools
+pip install -e ".[dev]"
+
+# Run tests (128 tests, 90% coverage)
 pytest
 
-# Run with coverage
-pytest --cov=src --cov-report=html
-
-# Run specific test file
-pytest tests/test_api.py
-
-# Run API tests only
-pytest tests/test_api.py -v
-```
-
-### Code Quality
-
-```bash
-# Format code
-black src tests scripts
-
-# Lint code
-ruff check src tests scripts
-
 # Type checking
-mypy src
+mypy src/
+
+# Linting
+ruff check src/ tests/
 ```
 
-### Pre-commit Hooks
+## API Architecture
 
-```bash
-# Install pre-commit hooks
-pip install pre-commit
-pre-commit install
-
-# Run manually
-pre-commit run --all-files
-```
-
-## Documentation
-
-- [Configuration Guide](CONFIGURATION.md) - Environment variables and settings
-- [LLM Providers](LLM_PROVIDERS.md) - Supported LLM providers and setup
-- [API Documentation](docs/API.md) - REST API reference
-- [Enhanced Features](README_ENHANCED.md) - RAG, validation, and advanced features
-- [Changelog](CHANGES.md) - Version history and changes
-
-## DNA Data Format
-
-### CSV Format (Recommended)
-
-```csv
-rsid,chromosome,position,genotype
-rs4988235,2,136608646,AG
-rs1815739,11,66560624,CT
-```
-
-### VCF Format
-
-VCF files are automatically converted to CSV format.
-
-```bash
-# Convert VCF to CSV
-from dna_rag.utils.vcf_parser import convert_vcf_to_csv
-convert_vcf_to_csv("input.vcf", "output.csv")
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests (`pytest`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the proposed FastAPI service design.
 
 ## License
 
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
-
-## Disclaimer
-
-**This tool is for research and educational purposes only. It is NOT a substitute for professional medical advice, diagnosis, or treatment.**
-
-- Always consult qualified healthcare professionals for medical decisions
-- Genetic data interpretation is complex and context-dependent
-- Results should not be used to make health decisions without professional guidance
-
-## Citation
-
-If you use this tool in your research, please cite:
-
-```bibtex
-@software{dna_rag,
-  title = {DNA RAG: DNA Analysis with Language Models},
-  author = {Your Name},
-  year = {2025},
-  url = {https://github.com/ice1x/DNA_RAG}
-}
-```
+Apache 2.0

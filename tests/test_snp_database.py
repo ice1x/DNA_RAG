@@ -1,151 +1,122 @@
-"""Tests for SNP database module."""
+"""Tests for the SNP database client.
 
-from unittest.mock import Mock, patch
+These tests mock HTTP calls to avoid hitting the real NCBI API.
+"""
 
-import pytest
-import requests
+from __future__ import annotations
 
-from dna_rag.utils.snp_database import SNPDatabase, SNPValidationResult
+import json
+from typing import Any
+from unittest.mock import MagicMock, patch
 
+from dna_rag.cache.memory import InMemoryCache
+from dna_rag.snp_database import SNPDatabase, SNPValidationResult
 
-@pytest.fixture
-def snp_db():
-    """Create SNP database instance."""
-    return SNPDatabase(cache_ttl=60, max_cache_size=100)
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
-
-@pytest.fixture
-def mock_dbsnp_response():
-    """Mock dbSNP API response."""
+def _mock_dbsnp_response(snp_id: str) -> dict[str, Any]:
+    """Build a minimal dbSNP-like JSON response."""
     return {
         "result": {
-            "123": {
-                "chr": "1",
-                "chrpos": "123456",
-                "genes": [{"name": "GENE1"}],
-                "allele_origin": "A/G",
+            snp_id: {
+                "chr": "19",
+                "chrpos": "44908684",
+                "genes": [{"name": "APOE"}],
+                "allele_origin": "C/T",
             }
         }
     }
 
 
-def test_snp_database_init(snp_db):
-    """Test SNP database initialization."""
-    assert snp_db._timeout == 10.0
-    assert len(snp_db._cache) == 0
+def _urlopen_factory(data: dict[str, Any]):
+    """Create a mock for urllib.request.urlopen."""
+    cm = MagicMock()
+    cm.__enter__ = MagicMock(return_value=cm)
+    cm.__exit__ = MagicMock(return_value=False)
+    cm.read.return_value = json.dumps(data).encode()
+    return cm
 
 
-def test_validate_rsid_cache_hit(snp_db):
-    """Test validation with cache hit."""
-    # Populate cache
-    cached_result = SNPValidationResult(rsid="rs123", exists=True, validated=True)
-    snp_db._cache["rs123"] = cached_result
-
-    result = snp_db.validate_rsid("rs123")
-    assert result == cached_result
-    assert result.rsid == "rs123"
+# ---------------------------------------------------------------------------
+# Tests: validate_rsid
+# ---------------------------------------------------------------------------
 
 
-@patch("snp_database.requests.Session.get")
-def test_validate_rsid_success(mock_get, snp_db, mock_dbsnp_response):
-    """Test successful RS ID validation."""
-    mock_response = Mock()
-    mock_response.json.return_value = mock_dbsnp_response
-    mock_response.raise_for_status = Mock()
-    mock_get.return_value = mock_response
+def test_validate_rsid_found() -> None:
+    db = SNPDatabase()
+    data = _mock_dbsnp_response("429358")
+    with patch("dna_rag.snp_database.urllib.request.urlopen", return_value=_urlopen_factory(data)):
+        result = db.validate_rsid("rs429358")
 
-    result = snp_db.validate_rsid("rs123")
-
-    assert result.rsid == "rs123"
+    assert isinstance(result, SNPValidationResult)
     assert result.exists is True
     assert result.validated is True
-    assert result.chromosome == "1"
-    assert result.position == 123456
-    assert result.gene == "GENE1"
+    assert result.chromosome == "19"
+    assert result.gene == "APOE"
+    assert result.alleles == ["C", "T"]
 
 
-@patch("snp_database.requests.Session.get")
-def test_validate_rsid_not_found(mock_get, snp_db):
-    """Test validation for non-existent RS ID."""
-    mock_response = Mock()
-    mock_response.json.return_value = {"result": {}}
-    mock_response.raise_for_status = Mock()
-    mock_get.return_value = mock_response
+def test_validate_rsid_not_found() -> None:
+    db = SNPDatabase()
+    data: dict[str, Any] = {"result": {}}
+    with patch("dna_rag.snp_database.urllib.request.urlopen", return_value=_urlopen_factory(data)):
+        result = db.validate_rsid("rs000000")
 
-    result = snp_db.validate_rsid("rs999")
-
-    assert result.rsid == "rs999"
     assert result.exists is False
     assert result.validated is False
 
 
-@patch("snp_database.requests.Session.get")
-def test_validate_rsid_network_error(mock_get, snp_db):
-    """Test validation with network error."""
-    mock_get.side_effect = requests.RequestException("Network error")
+def test_validate_rsid_network_error() -> None:
+    db = SNPDatabase()
+    with patch(
+        "dna_rag.snp_database.urllib.request.urlopen",
+        side_effect=OSError("network error"),
+    ):
+        result = db.validate_rsid("rs429358")
 
-    result = snp_db.validate_rsid("rs123")
-
-    assert result.rsid == "rs123"
     assert result.exists is False
-    assert result.validated is False
+    assert result.source == "dbsnp_error"
 
 
-def test_validate_batch(snp_db):
-    """Test batch validation."""
-    # Mock individual validation
-    with patch.object(snp_db, "validate_rsid") as mock_validate:
-        mock_validate.side_effect = [
-            SNPValidationResult(rsid="rs1", exists=True),
-            SNPValidationResult(rsid="rs2", exists=False),
-        ]
-
-        results = snp_db.validate_batch(["rs1", "rs2"])
-
-        assert len(results) == 2
-        assert results["rs1"].exists is True
-        assert results["rs2"].exists is False
+# ---------------------------------------------------------------------------
+# Tests: caching
+# ---------------------------------------------------------------------------
 
 
-def test_extract_chromosome():
-    """Test chromosome extraction."""
-    snp_data = {"chr": "1"}
-    chrom = SNPDatabase._extract_chromosome(snp_data)
-    assert chrom == "1"
+def test_caching_avoids_second_call() -> None:
+    cache = InMemoryCache()
+    db = SNPDatabase(cache=cache)
+    data = _mock_dbsnp_response("429358")
 
-    snp_data = {}
-    chrom = SNPDatabase._extract_chromosome(snp_data)
-    assert chrom is None
+    target = "dna_rag.snp_database.urllib.request.urlopen"
+    with patch(target, return_value=_urlopen_factory(data)) as mock_open:
+        r1 = db.validate_rsid("rs429358")
+        r2 = db.validate_rsid("rs429358")
 
-
-def test_extract_position():
-    """Test position extraction."""
-    snp_data = {"chrpos": "123456"}
-    pos = SNPDatabase._extract_position(snp_data)
-    assert pos == 123456
-
-    snp_data = {}
-    pos = SNPDatabase._extract_position(snp_data)
-    assert pos is None
+    # urlopen should only be called once
+    assert mock_open.call_count == 1
+    assert r1.exists is True
+    assert r2.exists is True
 
 
-def test_extract_gene():
-    """Test gene extraction."""
-    snp_data = {"genes": [{"name": "GENE1"}]}
-    gene = SNPDatabase._extract_gene(snp_data)
-    assert gene == "GENE1"
-
-    snp_data = {"genes": []}
-    gene = SNPDatabase._extract_gene(snp_data)
-    assert gene is None
+# ---------------------------------------------------------------------------
+# Tests: batch
+# ---------------------------------------------------------------------------
 
 
-def test_extract_alleles():
-    """Test allele extraction."""
-    snp_data = {"allele_origin": "A/G"}
-    alleles = SNPDatabase._extract_alleles(snp_data)
-    assert alleles == ["A", "G"]
+def test_validate_batch() -> None:
+    db = SNPDatabase(rate_limit_delay=0.0)  # no delay in tests
 
-    snp_data = {}
-    alleles = SNPDatabase._extract_alleles(snp_data)
-    assert alleles == []
+    responses = [
+        _urlopen_factory(_mock_dbsnp_response("429358")),
+        _urlopen_factory(_mock_dbsnp_response("7412")),
+    ]
+
+    target = "dna_rag.snp_database.urllib.request.urlopen"
+    with patch(target, side_effect=responses):
+        results = db.validate_batch(["rs429358", "rs7412"])
+
+    assert len(results) == 2
+    assert all(r.exists for r in results.values())

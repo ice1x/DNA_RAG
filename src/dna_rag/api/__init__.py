@@ -1,1 +1,1 @@
-"""FastAPI endpoints for DNA RAG."""
+"""FastAPI service layer for dna-rag."""
