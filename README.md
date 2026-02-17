@@ -71,13 +71,13 @@ mypy src/dna_rag/ --exclude vector_store.py
 
 ```bash
 # Single question
-dna-rag ask --dna-file path/to/genome.txt --question "lactose tolerance"
+dna-rag ask --dna-file path/to/genome.csv --question "lactose tolerance"
 
 # JSON output
-dna-rag ask --dna-file path/to/genome.txt --question "lactose tolerance" --output-format json
+dna-rag ask --dna-file path/to/genome.csv --question "lactose tolerance" --output-format json
 
 # Interactive session
-dna-rag interactive --dna-file path/to/genome.txt
+dna-rag interactive --dna-file path/to/genome.csv
 ```
 
 ### 6. Run the API Server
@@ -139,7 +139,7 @@ engine = DNAAnalysisEngine(
     cache=InMemoryCache(),
 )
 
-result = engine.analyze("lactose tolerance", Path("genome_data.txt"))
+result = engine.analyze("lactose tolerance", Path("genome_data.csv"))
 print(result.interpretation)
 print(f"Matched {result.snp_count_matched}/{result.snp_count_requested} SNPs")
 ```
@@ -163,7 +163,7 @@ engine = DNAAnalysisEngine(
 from dna_rag.polygenic import PolygenicScoreCalculator
 from dna_rag.parsers.detector import detect_and_parse
 
-df = detect_and_parse(Path("genome_data.txt"))
+df = detect_and_parse(Path("genome_data.csv"))
 calc = PolygenicScoreCalculator()
 result = calc.calculate("alzheimers_risk", df)
 print(result.interpretation)
