@@ -71,13 +71,13 @@ mypy src/dna_rag/ --exclude vector_store.py
 
 ```bash
 # Single question
-dna-rag ask --dna-file path/to/dna.txt --question "lactose tolerance"
+dna-rag ask --dna-file path/to/genome.txt --question "lactose tolerance"
 
 # JSON output
-dna-rag ask --dna-file path/to/dna.txt --question "lactose tolerance" --output-format json
+dna-rag ask --dna-file path/to/genome.txt --question "lactose tolerance" --output-format json
 
 # Interactive session
-dna-rag interactive --dna-file path/to/dna.txt
+dna-rag interactive --dna-file path/to/genome.txt
 ```
 
 ### 6. Run the API Server
@@ -99,7 +99,7 @@ curl http://localhost:8000/health
 
 # Analyze (with file upload)
 curl -X POST http://localhost:8000/api/v1/analyze \
-  -F "file=@my_dna.txt" \
+  -F "file=@genome_data.csv" \
   -F "question=lactose tolerance"
 
 # Supported formats
@@ -139,7 +139,7 @@ engine = DNAAnalysisEngine(
     cache=InMemoryCache(),
 )
 
-result = engine.analyze("lactose tolerance", Path("my_dna.txt"))
+result = engine.analyze("lactose tolerance", Path("genome_data.txt"))
 print(result.interpretation)
 print(f"Matched {result.snp_count_matched}/{result.snp_count_requested} SNPs")
 ```
@@ -163,7 +163,7 @@ engine = DNAAnalysisEngine(
 from dna_rag.polygenic import PolygenicScoreCalculator
 from dna_rag.parsers.detector import detect_and_parse
 
-df = detect_and_parse(Path("my_dna.txt"))
+df = detect_and_parse(Path("genome_data.txt"))
 calc = PolygenicScoreCalculator()
 result = calc.calculate("alzheimers_risk", df)
 print(result.interpretation)
@@ -181,12 +181,15 @@ print(f"{info.rsid}: gene={info.gene}, chr={info.chromosome}")
 
 ## Supported DNA Formats
 
-| Format | Extension | Delimiter | Auto-detected |
-|--------|-----------|-----------|---------------|
-| VCF | `.vcf`, `.vcf.gz` | Tab | ✅ |
-| 23andMe | `.txt` | Tab | ✅ |
-| AncestryDNA | `.txt` | Tab | ✅ |
-| MyHeritage | `.csv` | Comma | ✅ |
+Input files are **tabular data** (TSV/CSV) exported by DNA testing services.
+Format is auto-detected by file content (header), not extension.
+
+| Service | File type | Delimiter | Example file |
+|---------|-----------|-----------|--------------|
+| VCF | `.vcf`, `.vcf.gz` | Tab | `genome.vcf` |
+| 23andMe | `.txt` (TSV) | Tab | `genome_John_Doe.txt` |
+| AncestryDNA | `.txt` (TSV) | Tab | `AncestryDNA_raw.txt` |
+| MyHeritage | `.csv` | Comma | `MyHeritage_raw.csv` |
 
 ## Configuration
 
