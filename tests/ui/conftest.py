@@ -7,6 +7,9 @@ from pathlib import Path
 
 import pytest
 
+# Skip the entire UI test package when streamlit is not installed.
+pytest.importorskip("streamlit", reason="streamlit is required for UI tests")
+
 SNP_JSON = json.dumps(
     {
         "rs1": {

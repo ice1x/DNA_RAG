@@ -7,11 +7,13 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from dna_rag.config import Settings
-from dna_rag.exceptions import AnalysisError, ConfigurationError, DNARagError
-from dna_rag.models import AnalysisResult, SNPResult
-from dna_rag.ui.app import _build_engine, _make_llm_provider
-from tests.ui.conftest import INTERPRETATION
+st = pytest.importorskip("streamlit", reason="streamlit is required for UI tests")
+
+from dna_rag.config import Settings  # noqa: E402
+from dna_rag.exceptions import AnalysisError, ConfigurationError, DNARagError  # noqa: E402
+from dna_rag.models import AnalysisResult, SNPResult  # noqa: E402
+from dna_rag.ui.app import _build_engine, _make_llm_provider  # noqa: E402
+from tests.ui.conftest import INTERPRETATION  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # _make_llm_provider
