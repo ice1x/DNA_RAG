@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -112,10 +113,15 @@ async def analyze_async(
     assert resolved_file_id is not None
     job = job_store.create(question=question, file_id=resolved_file_id)
 
-    # Launch background task
-    asyncio.create_task(
-        _run_job(job.job_id, question, resolved_file_id, service, job_store)
+    # Launch background thread. We use a plain thread rather than
+    # asyncio.create_task because analyze_with_file_id is synchronous
+    # and asyncio tasks don't reliably resume under TestClient's event loop.
+    thread = threading.Thread(
+        target=_run_job,
+        args=(job.job_id, question, resolved_file_id, service, job_store),
+        daemon=True,
     )
+    thread.start()
 
     return JobCreateResponse(
         job_id=job.job_id,
@@ -124,19 +130,17 @@ async def analyze_async(
     )
 
 
-async def _run_job(
+def _run_job(
     job_id: str,
     question: str,
     file_id: str,
     service: AnalysisService,
     job_store: JobStore,
 ) -> None:
-    """Execute an analysis job in the background."""
+    """Execute an analysis job in a background thread."""
     job_store.set_running(job_id)
     try:
-        result = await asyncio.to_thread(
-            service.analyze_with_file_id, question, file_id,
-        )
+        result = service.analyze_with_file_id(question, file_id)
         job_store.set_completed(job_id, result.model_dump(mode="json"))
     except Exception as exc:
         job_store.set_failed(job_id, str(exc))

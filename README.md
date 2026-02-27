@@ -28,12 +28,36 @@ pip install -e ".[rag]"
 cp .env.example .env
 ```
 
-Edit `.env`:
+Edit `.env` — pick your provider:
+
+**DeepSeek** (default):
 
 ```bash
-DNA_RAG_LLM_API_KEY=your-api-key-here
-DNA_RAG_LLM_PROVIDER=deepseek          # or openai_compat
+DNA_RAG_LLM_PROVIDER=deepseek
+DNA_RAG_LLM_API_KEY=your-deepseek-key
 DNA_RAG_LLM_MODEL=deepseek-r1:free
+DNA_RAG_LLM_BASE_URL=https://api.deepseek.com/v1
+```
+
+**OpenAI** (or any OpenAI-compatible API):
+
+```bash
+DNA_RAG_LLM_PROVIDER=openai_compat
+DNA_RAG_LLM_API_KEY=sk-your-openai-key
+DNA_RAG_LLM_MODEL=gpt-4o-mini
+DNA_RAG_LLM_BASE_URL=https://api.openai.com/v1
+```
+
+The `openai_compat` provider works with any API that implements the OpenAI `/chat/completions` format: OpenAI, Azure OpenAI, Ollama, vLLM, LM Studio, etc.
+
+**Per-step LLM** (optional) — use a different model for the interpretation step:
+
+```bash
+# Interpretation step overrides (falls back to primary if not set)
+DNA_RAG_LLM_INTERP_PROVIDER=openai_compat
+DNA_RAG_LLM_INTERP_API_KEY=sk-your-openai-key
+DNA_RAG_LLM_INTERP_MODEL=gpt-4o-mini
+DNA_RAG_LLM_INTERP_BASE_URL=https://api.openai.com/v1
 ```
 
 ### 3. Run Tests
@@ -193,7 +217,9 @@ Format is auto-detected by file content (header), not extension.
 
 ## Configuration
 
-All settings via `DNA_RAG_`-prefixed env vars or `.env` file:
+All settings via `DNA_RAG_`-prefixed env vars or `.env` file.
+
+### Primary LLM (SNP identification + default)
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -201,11 +227,36 @@ All settings via `DNA_RAG_`-prefixed env vars or `.env` file:
 | `DNA_RAG_LLM_PROVIDER` | `deepseek` | `deepseek` or `openai_compat` |
 | `DNA_RAG_LLM_MODEL` | `deepseek-r1:free` | Model name |
 | `DNA_RAG_LLM_BASE_URL` | `https://api.deepseek.com/v1` | API base URL |
-| `DNA_RAG_LLM_INTERP_PROVIDER` | — | Separate provider for interpretation step |
-| `DNA_RAG_LLM_INTERP_MODEL` | — | Separate model for interpretation step |
+| `DNA_RAG_LLM_TEMPERATURE` | `0.0` | Sampling temperature (`0.0`–`2.0`) |
+| `DNA_RAG_LLM_MAX_TOKENS` | — | Max response tokens (provider default if unset) |
+| `DNA_RAG_LLM_TIMEOUT` | `60.0` | Request timeout in seconds |
+| `DNA_RAG_LLM_MAX_RETRIES` | `3` | Retries on connection/rate-limit errors (`0`–`10`) |
+
+### Interpretation LLM (optional, overrides primary for step 2)
+
+If not set, the primary LLM settings are used for both steps.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DNA_RAG_LLM_INTERP_PROVIDER` | — | `deepseek` or `openai_compat` |
+| `DNA_RAG_LLM_INTERP_API_KEY` | — | API key (falls back to primary) |
+| `DNA_RAG_LLM_INTERP_MODEL` | — | Model name (falls back to primary) |
+| `DNA_RAG_LLM_INTERP_BASE_URL` | — | API base URL (falls back to primary) |
+| `DNA_RAG_LLM_INTERP_TEMPERATURE` | `0.0` | Sampling temperature |
+| `DNA_RAG_LLM_INTERP_MAX_TOKENS` | — | Max response tokens |
+| `DNA_RAG_LLM_INTERP_TIMEOUT` | `60.0` | Request timeout in seconds |
+| `DNA_RAG_LLM_INTERP_MAX_RETRIES` | `3` | Retries on connection/rate-limit errors |
+
+### Cache, Logging, Parser
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `DNA_RAG_CACHE_BACKEND` | `memory` | `memory` or `none` |
+| `DNA_RAG_CACHE_MAX_SIZE` | `1000` | Max cached entries |
+| `DNA_RAG_CACHE_TTL_SECONDS` | `3600` | Cache entry lifetime in seconds |
 | `DNA_RAG_LOG_LEVEL` | `INFO` | Logging level |
 | `DNA_RAG_LOG_FORMAT` | `console` | `console` or `json` |
+| `DNA_RAG_DEFAULT_DNA_FORMAT` | `auto` | `auto`, `23andme`, `ancestrydna`, or `myheritage` |
 
 ## Project Structure
 
@@ -252,7 +303,8 @@ make docker-up     # Start via docker-compose
 
 ## API Documentation
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full FastAPI design document.
+- [docs/API.md](docs/API.md) — endpoint reference, request/response examples
+- [ARCHITECTURE.md](ARCHITECTURE.md) — FastAPI design document and target architecture
 
 Interactive docs available at `http://localhost:8000/docs` when server is running.
 

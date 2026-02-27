@@ -591,7 +591,7 @@ async def readiness(
 
 ## Configuration
 
-Extends the existing `Settings` class:
+Extends the existing `Settings` class (see `src/dna_rag/api/config.py`):
 
 ```python
 class APISettings(Settings):
@@ -600,29 +600,23 @@ class APISettings(Settings):
     # Server
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    api_workers: int = 4
-
-    # CORS
+    api_workers: int = 1
     cors_origins: list[str] = ["*"]
 
     # Auth
-    auth_enabled: bool = True
-    auth_secret_key: SecretStr = ...
+    auth_enabled: bool = False
+    api_keys: list[str] = []  # DNA_RAG_API_KEYS='key1,key2'
 
-    # Redis
-    redis_url: str = "redis://localhost:6379/0"
-
-    # Database
-    database_url: str = "postgresql+asyncpg://..."
-
-    # Storage
-    s3_bucket: str = "dna-rag-files"
-    s3_region: str = "eu-central-1"
-    file_max_size_mb: int = 50
-    file_retention_days: int = 30
+    # File storage (local disk, PoC)
+    upload_dir: str = "/tmp/dna_rag_uploads"
+    file_max_size_mb: int = 50   # 1–200
+    file_retention_hours: int = 24
 
     # Rate limiting
     rate_limit_per_minute: int = 60
+
+    # Jobs
+    job_ttl_seconds: int = 3600
 ```
 
 All variables use the same `DNA_RAG_` prefix:
@@ -630,10 +624,14 @@ All variables use the same `DNA_RAG_` prefix:
 ```bash
 DNA_RAG_API_HOST=0.0.0.0
 DNA_RAG_API_PORT=8000
-DNA_RAG_REDIS_URL=redis://redis:6379/0
-DNA_RAG_DATABASE_URL=postgresql+asyncpg://user:pass@db/dna_rag
-DNA_RAG_AUTH_SECRET_KEY=your-jwt-secret
+DNA_RAG_AUTH_ENABLED=true
+DNA_RAG_API_KEYS=key1,key2
+DNA_RAG_UPLOAD_DIR=/var/lib/dna_rag/uploads
 ```
+
+> **Note:** The target architecture diagram above includes Redis, PostgreSQL,
+> and S3 which are not yet implemented. The current PoC uses in-memory job
+> storage and local filesystem for uploads.
 
 ---
 
