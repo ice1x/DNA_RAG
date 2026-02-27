@@ -116,12 +116,13 @@ def main() -> None:
             st.stop()
 
     # --- Init session state ------------------------------------------------
-    for key, default in [
-        ("dna_path", None),
-        ("dna_df", None),
-        ("file_id", None),
-        ("history", []),
-    ]:
+    defaults: dict[str, object] = {
+        "dna_path": None,
+        "dna_df": None,
+        "file_id": None,
+        "history": [],
+    }
+    for key, default in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = default
 

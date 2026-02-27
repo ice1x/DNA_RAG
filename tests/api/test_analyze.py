@@ -96,8 +96,8 @@ class TestAsyncAnalyze:
         )
         job_id = resp.json()["job_id"]
 
-        # Poll until completed (generous timeout for slow CI runners)
-        for _ in range(50):
+        # Poll until completed (timeout 5s)
+        for _ in range(25):
             time.sleep(0.2)
             poll = client.get(f"/api/v1/jobs/{job_id}")
             assert poll.status_code == 200

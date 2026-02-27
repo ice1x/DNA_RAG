@@ -23,6 +23,10 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["analysis"])
 
+# Strong references to background tasks so they aren't garbage-collected.
+# See: https://docs.python.org/3/library/asyncio-task.html#creating-tasks
+_background_tasks: set[asyncio.Task] = set()  # type: ignore[type-arg]
+
 
 # ---------------------------------------------------------------------------
 # POST /api/v1/analyze  (synchronous)
@@ -112,10 +116,12 @@ async def analyze_async(
     assert resolved_file_id is not None
     job = job_store.create(question=question, file_id=resolved_file_id)
 
-    # Launch background task
-    asyncio.create_task(
+    # Launch background task (save reference to prevent GC)
+    task = asyncio.create_task(
         _run_job(job.job_id, question, resolved_file_id, service, job_store)
     )
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
     return JobCreateResponse(
         job_id=job.job_id,
