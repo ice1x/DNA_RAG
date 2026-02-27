@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint typecheck check serve docker-build docker-up docker-down clean
+.PHONY: help install dev test lint typecheck check serve ui docker-build docker-up docker-down clean
 
 PYTHON ?= python
 PORT   ?= 8000
@@ -14,8 +14,8 @@ help:  ## Show this help
 install:  ## Install the package (core only)
 	$(PYTHON) -m pip install -e .
 
-dev:  ## Install with dev + api extras
-	$(PYTHON) -m pip install -e ".[api,dev]"
+dev:  ## Install with dev + api + ui extras
+	$(PYTHON) -m pip install -e ".[api,ui,dev]"
 
 # ---------------------------------------------------------------------------
 # Quality
@@ -39,6 +39,9 @@ check: lint typecheck test  ## Run all quality checks
 
 serve:  ## Start the API server (development)
 	uvicorn dna_rag.api.main:app --reload --port $(PORT)
+
+ui:  ## Start the Streamlit UI
+	$(PYTHON) -m streamlit run src/dna_rag/ui/app.py
 
 # ---------------------------------------------------------------------------
 # Docker

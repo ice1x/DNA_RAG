@@ -29,6 +29,9 @@ rag = [
     "chromadb>=0.4.22",
     "sentence-transformers>=2.3.1",
 ]
+ui = [
+    "streamlit>=1.31,<2",
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
@@ -43,6 +46,7 @@ dev = [
 [project.scripts]
 dna-rag = "dna_rag.cli:main"
 dna-rag-api = "dna_rag.api.main:run"
+dna-rag-ui = "dna_rag.ui.app:run"
 
 [tool.hatch.version]
 path = "src/dna_rag/_version.py"
@@ -69,6 +73,7 @@ omit = [
     "src/dna_rag/cache/base.py",
     "src/dna_rag/llm/base.py",
     "src/dna_rag/vector_store.py",
+    "src/dna_rag/ui/*",
 ]
 
 [tool.coverage.report]
