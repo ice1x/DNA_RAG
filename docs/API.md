@@ -1,203 +1,287 @@
-# DNA RAG API Documentation
+# DNA RAG API Reference
 
-## Overview
+> REST + WebSocket API built with FastAPI.
 
-DNA RAG provides a RESTful API built with FastAPI for analyzing DNA data using large language models with Retrieval-Augmented Generation (RAG).
-
-## Running the API Server
-
-### Development Mode
+Start the server:
 
 ```bash
-uvicorn dna_rag.api.app:app --reload --host 0.0.0.0 --port 8000
+# Development
+dna-rag-api
+
+# Or directly
+uvicorn dna_rag.api.main:app --reload --host 0.0.0.0 --port 8000
+
+# Docker
+make docker-build && make docker-up
 ```
 
-### Production Mode
+Interactive docs: `http://localhost:8000/docs` (Swagger UI).
 
-```bash
-uvicorn dna_rag.api.app:app --host 0.0.0.0 --port 8000 --workers 4
-```
+---
 
-## Environment Variables
+## Endpoints
 
-Set up your API keys in `.env` file:
+### Analysis
 
-```bash
-DNA_RAG_OPENAI_API_KEY=your_openai_key
-DNA_RAG_DEEPSEEK_API_KEY=your_deepseek_key
-DNA_RAG_LLM_PROVIDERS=openai,deepseek
-```
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/v1/analyze` | Synchronous analysis (upload + question) |
+| `POST` | `/api/v1/analyze/async` | Submit background job, returns `job_id` |
+| `GET` | `/api/v1/jobs/{job_id}` | Poll job status / retrieve result |
+| `WS` | `/ws/v1/analyze` | WebSocket with step-by-step streaming |
 
-## API Endpoints
+### File Management
 
-### Health Check
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/v1/files` | Upload DNA file, returns `file_id` |
+| `GET` | `/api/v1/files/{file_id}` | File metadata |
+| `DELETE` | `/api/v1/files/{file_id}` | Remove uploaded file |
 
-**GET** `/health`
+### System
 
-Check API health and available providers.
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/health` | Liveness probe |
+| `GET` | `/ready` | Readiness probe (checks engine) |
+| `GET` | `/api/v1/formats` | Supported DNA file formats |
 
-**Response:**
+---
+
+## `POST /api/v1/analyze`
+
+Synchronous DNA analysis. Provide **either** `file` (upload) **or** `file_id`.
+
+**Request** (`multipart/form-data`):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `question` | string | yes | Question about the DNA data |
+| `file` | binary | one of | DNA file upload |
+| `file_id` | string | one of | Reference to a previously uploaded file |
+
+**Response** (`200 OK`):
+
 ```json
 {
-  "status": "healthy",
-  "version": "0.1.0",
-  "providers": {
-    "openai": {
-      "available": true,
-      "model": "gpt-4o-mini"
-    },
-    "deepseek": {
-      "available": true,
-      "model": "deepseek-chat"
+  "id": "ana_01J8K...",
+  "question": "What is my caffeine metabolism?",
+  "matched_snps": [
+    {
+      "rsid": "rs762551",
+      "chromosome": "15",
+      "position": 75041917,
+      "genotype": "AC"
     }
+  ],
+  "interpretation": "Based on your CYP1A2 genotype ...",
+  "snp_count_requested": 5,
+  "snp_count_matched": 3,
+  "cached": false,
+  "processing_time_ms": 4200,
+  "llm_models": {
+    "snp_identification": "deepseek-r1:free",
+    "interpretation": "gpt-4o-mini"
   }
 }
 ```
 
-### Ask DNA Question (Basic)
+**Errors**:
 
-**POST** `/ask`
+| Status | When |
+|--------|------|
+| `400` | Missing file/file_id, parsing error, invalid format |
+| `404` | `file_id` not found |
+| `422` | No matching variants in DNA file |
+| `502` | LLM provider error |
 
-Ask a question about DNA data using basic LLM analysis.
+---
 
-**Request Body:**
-```json
-{
-  "question": "Am I lactose intolerant?",
-  "dna_data": "rsid,chromosome,position,genotype\nrs4988235,2,136608646,AG\n..."
-}
-```
+## `POST /api/v1/analyze/async`
 
-**Response:**
-```json
-{
-  "question": "Am I lactose intolerant?",
-  "answer": "Based on your DNA, you are likely lactose tolerant...",
-  "provider": "openai"
-}
-```
+Submit analysis as a background job.
 
-### Ask DNA Question (Enhanced)
+**Request**: same as `/api/v1/analyze`.
 
-**POST** `/ask-enhanced`
-
-Ask a question with enhanced features including RAG, SNP validation, and structured output.
-
-**Request Body:**
-```json
-{
-  "question": "Am I lactose intolerant?",
-  "dna_data": "rsid,chromosome,position,genotype\nrs4988235,2,136608646,AG\n...",
-  "use_rag": true
-}
-```
-
-**Response:**
-```json
-{
-  "question": "Am I lactose intolerant?",
-  "interpretation": "You are likely lactose tolerant based on your genetics.",
-  "confidence": 0.85,
-  "snps_found": [
-    {
-      "rsid": "rs4988235",
-      "genotype": "AG",
-      "gene": "LCT",
-      "trait": "lactose tolerance",
-      "validated": true,
-      "similarity": 0.95
-    }
-  ],
-  "sources": ["dbSNP", "ClinVar"],
-  "caveats": ["This is not medical advice"],
-  "provider": "openai"
-}
-```
-
-### Calculate Polygenic Score
-
-**POST** `/polygenic-score`
-
-Calculate a polygenic risk score from DNA data.
-
-**Request Body:**
-```json
-{
-  "score_name": "alzheimers_risk",
-  "dna_data": "rsid,chromosome,position,genotype\nrs429358,19,45411941,CT\n..."
-}
-```
-
-**Response:**
-```json
-{
-  "score_name": "alzheimers_risk",
-  "score": 1.25,
-  "interpretation": "Elevated risk compared to population average",
-  "percentile": 75.5
-}
-```
-
-## Error Responses
-
-All endpoints return error responses in the following format:
+**Response** (`202 Accepted`):
 
 ```json
 {
-  "error": "ValidationError",
-  "detail": "DNA data must contain columns: rsid, chromosome, position, genotype",
-  "status_code": 400
+  "job_id": "job_01J8K...",
+  "status": "pending",
+  "poll_url": "/api/v1/jobs/job_01J8K...",
+  "websocket_url": "/ws/v1/jobs/job_01J8K..."
 }
 ```
 
-### HTTP Status Codes
+---
 
-- `200 OK` - Request succeeded
-- `400 Bad Request` - Invalid request data
-- `500 Internal Server Error` - Server error
-- `503 Service Unavailable` - Service not initialized
+## `GET /api/v1/jobs/{job_id}`
 
-## Interactive API Documentation
+Poll status of an async job.
 
-Once the server is running, visit:
+**Response** (`200 OK`):
 
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-- **OpenAPI Schema**: http://localhost:8000/openapi.json
-
-## Example Usage
-
-### Python
-
-```python
-import requests
-
-# Ask a question
-response = requests.post(
-    "http://localhost:8000/ask",
-    json={
-        "question": "Am I lactose intolerant?",
-        "dna_data": "rsid,chromosome,position,genotype\nrs4988235,2,136608646,AG\n"
-    }
-)
-print(response.json())
+```json
+{
+  "job_id": "job_01J8K...",
+  "status": "completed",
+  "created_at": "2025-01-15T10:30:00Z",
+  "completed_at": "2025-01-15T10:30:04Z",
+  "result": { "...same as /api/v1/analyze response..." },
+  "error": null
+}
 ```
+
+Status values: `pending` → `running` → `completed` | `failed`.
+
+---
+
+## `POST /api/v1/files`
+
+Upload a DNA data file.
+
+**Request**: `multipart/form-data` with a single `file` field.
+
+**Response** (`201 Created`):
+
+```json
+{
+  "file_id": "file_abc123",
+  "filename": "genome_data.txt",
+  "format": "23andme",
+  "row_count": 610000,
+  "size_bytes": 23456789,
+  "uploaded_at": "2025-01-15T10:30:00Z"
+}
+```
+
+---
+
+## `GET /api/v1/files/{file_id}`
+
+Returns metadata for a previously uploaded file (same shape as upload response).
+
+---
+
+## `DELETE /api/v1/files/{file_id}`
+
+Removes an uploaded file. Returns `204 No Content` on success, `404` if not found.
+
+---
+
+## WebSocket `/ws/v1/analyze`
+
+Real-time progress for the two-step pipeline.
+
+**Client sends**:
+
+```json
+{ "question": "caffeine metabolism", "file_id": "file_abc123" }
+```
+
+**Server streams** (`ProgressEvent`):
+
+```
+→ { "step": "parsing",             "status": "started" }
+→ { "step": "parsing",             "status": "done",    "data": {"rows": 610000} }
+→ { "step": "snp_identification",  "status": "started", "data": {"model": "deepseek-r1:free"} }
+→ { "step": "snp_identification",  "status": "done",    "data": {"snps_found": 5} }
+→ { "step": "filtering",           "status": "started" }
+→ { "step": "filtering",           "status": "done",    "data": {"matched": 3} }
+→ { "step": "interpretation",      "status": "started", "data": {"model": "gpt-4o-mini"} }
+→ { "step": "interpretation",      "status": "done" }
+→ { "step": "complete",            "status": "done",    "data": { ...result... } }
+```
+
+On error:
+
+```json
+{ "step": "error", "status": "error", "data": {"message": "..."} }
+```
+
+---
+
+## Error Format
+
+All errors follow RFC 7807-inspired format:
+
+```json
+{
+  "error": {
+    "code": "NO_MATCHING_VARIANTS",
+    "message": "None of the identified SNPs were found in your DNA file.",
+    "details": { "snps_requested": 8, "snps_matched": 0 }
+  }
+}
+```
+
+---
+
+## Configuration
+
+See the [README](../README.md#configuration) for all `DNA_RAG_*` environment variables.
+
+API-specific settings (extend core config):
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DNA_RAG_API_HOST` | `0.0.0.0` | Server bind address |
+| `DNA_RAG_API_PORT` | `8000` | Server port |
+| `DNA_RAG_API_WORKERS` | `1` | Uvicorn worker count |
+| `DNA_RAG_CORS_ORIGINS` | `["*"]` | Allowed CORS origins |
+| `DNA_RAG_AUTH_ENABLED` | `false` | Enable API key auth |
+| `DNA_RAG_API_KEYS` | — | Comma-separated valid API keys |
+| `DNA_RAG_UPLOAD_DIR` | `/tmp/dna_rag_uploads` | File upload directory |
+| `DNA_RAG_FILE_MAX_SIZE_MB` | `50` | Max upload size (1–200 MB) |
+| `DNA_RAG_FILE_RETENTION_HOURS` | `24` | Auto-cleanup after N hours |
+| `DNA_RAG_RATE_LIMIT_PER_MINUTE` | `60` | Requests per minute per key |
+| `DNA_RAG_JOB_TTL_SECONDS` | `3600` | Job result lifetime |
+
+---
+
+## Examples
 
 ### cURL
 
 ```bash
-curl -X POST "http://localhost:8000/ask" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "Am I lactose intolerant?",
-    "dna_data": "rsid,chromosome,position,genotype\nrs4988235,2,136608646,AG\n"
-  }'
+# Health check
+curl http://localhost:8000/health
+
+# Upload file
+curl -X POST http://localhost:8000/api/v1/files \
+  -F "file=@genome_data.csv"
+
+# Analyze with file upload
+curl -X POST http://localhost:8000/api/v1/analyze \
+  -F "question=lactose tolerance" \
+  -F "file=@genome_data.csv"
+
+# Analyze with file_id
+curl -X POST http://localhost:8000/api/v1/analyze \
+  -F "question=caffeine metabolism" \
+  -F "file_id=file_abc123"
+
+# Supported formats
+curl http://localhost:8000/api/v1/formats
 ```
 
-## Rate Limiting
+### Python
 
-Currently, there are no rate limits. In production, consider implementing rate limiting using middleware.
+```python
+import httpx
 
-## Authentication
+base = "http://localhost:8000"
 
-Currently, the API does not require authentication. In production, consider implementing API key authentication or OAuth2.
+# Upload
+with open("genome.csv", "rb") as f:
+    r = httpx.post(f"{base}/api/v1/files", files={"file": f})
+file_id = r.json()["file_id"]
+
+# Analyze
+r = httpx.post(
+    f"{base}/api/v1/analyze",
+    data={"question": "lactose tolerance", "file_id": file_id},
+)
+print(r.json()["interpretation"])
+```

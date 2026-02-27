@@ -303,7 +303,8 @@ make docker-up     # Start via docker-compose
 
 ## API Documentation
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the full FastAPI design document.
+- [docs/API.md](docs/API.md) — endpoint reference, request/response examples
+- [ARCHITECTURE.md](ARCHITECTURE.md) — FastAPI design document and target architecture
 
 Interactive docs available at `http://localhost:8000/docs` when server is running.
 
