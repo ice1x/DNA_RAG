@@ -68,6 +68,19 @@ class Settings(BaseSettings):
     cache_max_size: int = Field(1000, ge=0)
     cache_ttl_seconds: int = Field(3600, ge=0)
 
+    # --- RAG (Vector Store) ------------------------------------------------
+    rag_enabled: bool = False
+    rag_persist_directory: str | None = None
+    rag_embedding_model: str = "all-MiniLM-L6-v2"
+    rag_collection_name: str = "snp_traits"
+    rag_search_results: int = Field(10, ge=1, le=50)
+    rag_min_similarity: float = Field(0.3, ge=0.0, le=1.0)
+
+    # --- SNP Validation (NCBI) --------------------------------------------
+    validation_enabled: bool = False
+    validation_timeout: float = Field(10.0, gt=0)
+    validation_rate_limit_delay: float = Field(0.34, ge=0.0)
+
     # --- Logging -----------------------------------------------------------
     log_level: str = "INFO"
     log_format: Literal["json", "console"] = "console"
@@ -101,6 +114,15 @@ class Settings(BaseSettings):
             cache_backend=self.cache_backend,
             cache_max_size=self.cache_max_size,
             cache_ttl_seconds=self.cache_ttl_seconds,
+            rag_enabled=self.rag_enabled,
+            rag_persist_directory=self.rag_persist_directory,
+            rag_embedding_model=self.rag_embedding_model,
+            rag_collection_name=self.rag_collection_name,
+            rag_search_results=self.rag_search_results,
+            rag_min_similarity=self.rag_min_similarity,
+            validation_enabled=self.validation_enabled,
+            validation_timeout=self.validation_timeout,
+            validation_rate_limit_delay=self.validation_rate_limit_delay,
             log_level=self.log_level,
             log_format=self.log_format,
             default_dna_format=self.default_dna_format,

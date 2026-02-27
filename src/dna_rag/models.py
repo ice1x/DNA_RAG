@@ -84,3 +84,5 @@ class AnalysisResult(BaseModel):
         description="Number of those SNPs found in the user's DNA file",
     )
     cached: bool = False
+    rag_context_used: bool = False
+    validation_used: bool = False

@@ -40,12 +40,27 @@ def _make_llm_provider(settings: Settings):  # noqa: ANN202
         )
 
 
-def _build_engine(settings: Settings):  # noqa: ANN202
-    """Wire up the :class:`~dna_rag.engine.DNAAnalysisEngine` from *settings*.
+def _build_vector_store(settings: Settings):  # noqa: ANN202
+    """Attempt to create a :class:`SNPVectorStore`.  Returns ``None`` on failure."""
+    try:
+        from dna_rag.vector_store import SNPVectorStore
+    except ImportError:
+        logger.warning(
+            "rag_unavailable",
+            reason="Install with: pip install dna-rag[rag]",
+        )
+        return None
 
-    If ``llm_interp_*`` settings are configured, a separate LLM provider
-    is created for the interpretation step.
-    """
+    persist_dir = Path(settings.rag_persist_directory) if settings.rag_persist_directory else None
+    return SNPVectorStore(
+        persist_directory=persist_dir,
+        embedding_model=settings.rag_embedding_model,
+        collection_name=settings.rag_collection_name,
+    )
+
+
+def _build_engine(settings: Settings):  # noqa: ANN202
+    """Wire up the :class:`~dna_rag.engine.DNAAnalysisEngine` from *settings*."""
     from dna_rag.engine import DNAAnalysisEngine
 
     snp_llm = _make_llm_provider(settings)
@@ -64,10 +79,28 @@ def _build_engine(settings: Settings):  # noqa: ANN202
         else None
     )
 
+    vector_store = None
+    if settings.rag_enabled:
+        vector_store = _build_vector_store(settings)
+
+    snp_database = None
+    if settings.validation_enabled:
+        from dna_rag.snp_database import SNPDatabase
+
+        snp_database = SNPDatabase(
+            cache=cache,
+            request_timeout=settings.validation_timeout,
+            rate_limit_delay=settings.validation_rate_limit_delay,
+        )
+
     return DNAAnalysisEngine(
         snp_llm=snp_llm,
         interpretation_llm=interp_llm,
         cache=cache,
+        vector_store=vector_store,
+        snp_database=snp_database,
+        rag_search_results=settings.rag_search_results,
+        rag_min_similarity=settings.rag_min_similarity,
     )
 
 

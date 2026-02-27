@@ -45,6 +45,21 @@ def _make_llm_provider(settings: Settings):  # noqa: ANN202
         raise ConfigurationError(f"Unknown LLM provider: {settings.llm_provider}")
 
 
+def _build_vector_store(settings: Settings):  # noqa: ANN202
+    """Attempt to create a :class:`SNPVectorStore`.  Returns ``None`` on failure."""
+    try:
+        from dna_rag.vector_store import SNPVectorStore
+    except ImportError:
+        return None
+
+    persist_dir = Path(settings.rag_persist_directory) if settings.rag_persist_directory else None
+    return SNPVectorStore(
+        persist_directory=persist_dir,
+        embedding_model=settings.rag_embedding_model,
+        collection_name=settings.rag_collection_name,
+    )
+
+
 def _build_engine(settings: Settings):  # noqa: ANN202
     from dna_rag.engine import DNAAnalysisEngine
 
@@ -64,10 +79,28 @@ def _build_engine(settings: Settings):  # noqa: ANN202
         else None
     )
 
+    vector_store = None
+    if settings.rag_enabled:
+        vector_store = _build_vector_store(settings)
+
+    snp_database = None
+    if settings.validation_enabled:
+        from dna_rag.snp_database import SNPDatabase
+
+        snp_database = SNPDatabase(
+            cache=cache,
+            request_timeout=settings.validation_timeout,
+            rate_limit_delay=settings.validation_rate_limit_delay,
+        )
+
     return DNAAnalysisEngine(
         snp_llm=snp_llm,
         interpretation_llm=interp_llm,
         cache=cache,
+        vector_store=vector_store,
+        snp_database=snp_database,
+        rag_search_results=settings.rag_search_results,
+        rag_min_similarity=settings.rag_min_similarity,
     )
 
 

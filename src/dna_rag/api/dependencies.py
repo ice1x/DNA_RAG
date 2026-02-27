@@ -7,6 +7,7 @@ file service, and job store via :func:`functools.lru_cache`.
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
 from dna_rag.api.config import APISettings
 from dna_rag.api.services.analysis import AnalysisService
@@ -41,6 +42,25 @@ def _make_llm_provider(settings: APISettings | Settings):  # noqa: ANN202
         raise ConfigurationError(f"Unknown LLM provider: {settings.llm_provider}")
 
 
+def _build_vector_store(settings: APISettings):  # noqa: ANN202
+    """Attempt to create a :class:`SNPVectorStore`.  Returns ``None`` on failure."""
+    try:
+        from dna_rag.vector_store import SNPVectorStore
+    except ImportError:
+        logger.warning(
+            "rag_unavailable",
+            reason="Install with: pip install dna-rag[rag]",
+        )
+        return None
+
+    persist_dir = Path(settings.rag_persist_directory) if settings.rag_persist_directory else None
+    return SNPVectorStore(
+        persist_directory=persist_dir,
+        embedding_model=settings.rag_embedding_model,
+        collection_name=settings.rag_collection_name,
+    )
+
+
 @lru_cache(maxsize=1)
 def get_engine() -> DNAAnalysisEngine:
     """Return the singleton :class:`DNAAnalysisEngine`."""
@@ -62,6 +82,20 @@ def get_engine() -> DNAAnalysisEngine:
         else None
     )
 
+    vector_store = None
+    if settings.rag_enabled:
+        vector_store = _build_vector_store(settings)
+
+    snp_database = None
+    if settings.validation_enabled:
+        from dna_rag.snp_database import SNPDatabase
+
+        snp_database = SNPDatabase(
+            cache=cache,
+            request_timeout=settings.validation_timeout,
+            rate_limit_delay=settings.validation_rate_limit_delay,
+        )
+
     logger.info(
         "engine_created",
         snp_provider=settings.llm_provider,
@@ -69,11 +103,17 @@ def get_engine() -> DNAAnalysisEngine:
             settings.llm_interp_provider or settings.llm_provider
         ),
         cache_backend=settings.cache_backend,
+        rag_enabled=vector_store is not None,
+        validation_enabled=snp_database is not None,
     )
     return DNAAnalysisEngine(
         snp_llm=snp_llm,
         interpretation_llm=interp_llm,
         cache=cache,
+        vector_store=vector_store,
+        snp_database=snp_database,
+        rag_search_results=settings.rag_search_results,
+        rag_min_similarity=settings.rag_min_similarity,
     )
 
 
