@@ -15,6 +15,7 @@ import hashlib
 import json
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 from pandas import DataFrame
@@ -30,6 +31,10 @@ from dna_rag.logging import get_logger
 from dna_rag.models import AnalysisResult, SNPDictResponse, SNPMetadata, SNPResult
 from dna_rag.parsers.detector import detect_and_parse
 
+if TYPE_CHECKING:
+    from dna_rag.snp_database import SNPDatabase
+    from dna_rag.vector_store import SNPVectorStore
+
 logger = get_logger(__name__)
 
 # Cache namespace constants
@@ -44,10 +49,12 @@ _CODE_BLOCK_RE = re.compile(
 
 
 class DNAAnalysisEngine:
-    """Two-step LLM pipeline for personal DNA analysis.
+    """RAG-augmented LLM pipeline for personal DNA analysis.
 
     The engine is **LLM-agnostic**: each pipeline step can use a different
-    LLM provider (or the same one).
+    LLM provider (or the same one).  An optional vector store provides
+    RAG context for SNP identification, and an optional SNP database
+    validates RSIDs against NCBI dbSNP.
 
     Args:
         snp_llm: LLM used for **Step 1** -- SNP identification.
@@ -55,14 +62,12 @@ class DNAAnalysisEngine:
             If ``None``, *snp_llm* is used for both steps.
         cache: A cache backend implementing
             :class:`~dna_rag.cache.base.Cache`.  Pass ``None`` to disable.
-
-    Example::
-
-        engine = DNAAnalysisEngine(
-            snp_llm=DeepSeekProvider(settings),           # reasoning model
-            interpretation_llm=OpenAICompatProvider(s2),   # cheaper model
-            cache=InMemoryCache(),
-        )
+        vector_store: Optional :class:`~dna_rag.vector_store.SNPVectorStore`
+            for RAG-augmented SNP identification.
+        snp_database: Optional :class:`~dna_rag.snp_database.SNPDatabase`
+            for NCBI validation of LLM-identified RSIDs.
+        rag_search_results: Max number of vector store results to use as context.
+        rag_min_similarity: Minimum similarity threshold for vector store results.
     """
 
     def __init__(
@@ -70,10 +75,18 @@ class DNAAnalysisEngine:
         snp_llm: LLMProvider,
         interpretation_llm: LLMProvider | None = None,
         cache: Cache | None = None,
+        vector_store: SNPVectorStore | None = None,
+        snp_database: SNPDatabase | None = None,
+        rag_search_results: int = 10,
+        rag_min_similarity: float = 0.3,
     ) -> None:
         self._snp_llm = snp_llm
         self._interp_llm = interpretation_llm or snp_llm
         self._cache = cache
+        self._vector_store = vector_store
+        self._snp_db = snp_database
+        self._rag_search_results = rag_search_results
+        self._rag_min_similarity = rag_min_similarity
 
     # ------------------------------------------------------------------
     # Public API
@@ -115,21 +128,33 @@ class DNAAnalysisEngine:
         # 2) Load & parse DNA file (cached by hash)
         df = self._load_dna(dna_file, file_hash)
 
-        # 3) Ask LLM for relevant SNPs
-        snp_response = self._get_snp_dict(question)
+        # 3) Get RAG context from vector store (optional)
+        rag_context = self._get_rag_context(question)
+
+        # 4) Ask LLM for relevant SNPs (with optional RAG context)
+        snp_response = self._get_snp_dict(question, rag_context=rag_context)
         if not snp_response.snps:
             raise NoSNPsFoundError(
                 f"No relevant SNPs identified for question: {question}"
             )
+        llm_snp_count = len(snp_response.snps)
 
-        # 4) Filter DNA data
+        # 5) Validate SNPs against NCBI (optional)
+        validated_snps = self._validate_snps(snp_response.snps)
+        if not validated_snps:
+            raise NoSNPsFoundError(
+                f"No valid SNPs identified for question: {question}"
+            )
+        snp_response = SNPDictResponse(snps=validated_snps)
+
+        # 6) Filter DNA data
         matched_df = self._filter_snps(df, snp_response.snps)
         if matched_df.empty:
             raise NoMatchingVariantsError(
                 f"No matching variants found in DNA file for: {question}"
             )
 
-        # 5) Interpret
+        # 7) Interpret
         matched_snps = self._dataframe_to_snp_results(matched_df)
         interpretation = self._interpret(matched_df, question)
 
@@ -137,9 +162,11 @@ class DNAAnalysisEngine:
             question=question,
             matched_snps=matched_snps,
             interpretation=interpretation,
-            snp_count_requested=len(snp_response.snps),
+            snp_count_requested=llm_snp_count,
             snp_count_matched=len(matched_snps),
             cached=False,
+            rag_context_used=bool(rag_context),
+            validation_used=self._snp_db is not None,
         )
 
         if self._cache is not None:
@@ -176,8 +203,84 @@ class DNAAnalysisEngine:
             self._cache.set(NS_FILE, file_hash, df)
         return df
 
-    def _get_snp_dict(self, question: str) -> SNPDictResponse:
-        """Query the LLM for SNP identifiers related to *question*."""
+    def _get_rag_context(self, question: str) -> str:
+        """Query the vector store for SNPs semantically related to *question*.
+
+        Returns a formatted string suitable for injection into the LLM
+        prompt, or an empty string if no vector store is configured or
+        no results are found.
+        """
+        if self._vector_store is None:
+            return ""
+
+        try:
+            results: dict[str, Any] = self._vector_store.search(
+                question,
+                n_results=self._rag_search_results,
+                min_similarity=self._rag_min_similarity,
+            )
+        except Exception:
+            logger.warning("vector_store_search_failed", question=question, exc_info=True)
+            return ""
+
+        if not results:
+            return ""
+
+        lines = ["Known SNPs that may be relevant (from database):"]
+        for rsid, meta in results.items():
+            gene = meta.get("gene", "unknown")
+            trait = meta.get("trait", "unknown")
+            sim = meta.get("similarity", 0)
+            lines.append(f"  - {rsid}: gene={gene}, trait={trait} (similarity={sim:.2f})")
+
+        logger.info("rag_context_found", count=len(results))
+        return "\n".join(lines)
+
+    def _validate_snps(
+        self, snps: dict[str, SNPMetadata],
+    ) -> dict[str, SNPMetadata]:
+        """Validate RSIDs against NCBI dbSNP, removing invalid ones.
+
+        If no SNP database is configured or validation fails, returns
+        *snps* unchanged (graceful degradation).
+        """
+        if self._snp_db is None:
+            return snps
+
+        try:
+            results = self._snp_db.validate_batch(list(snps.keys()))
+        except Exception:
+            logger.warning("snp_validation_failed", exc_info=True)
+            return snps
+
+        valid: dict[str, SNPMetadata] = {}
+        invalid: list[str] = []
+
+        for rsid, meta in snps.items():
+            validation = results.get(rsid)
+            if validation is not None and validation.exists:
+                valid[rsid] = meta
+            else:
+                invalid.append(rsid)
+
+        if invalid:
+            logger.info(
+                "snps_filtered_by_validation",
+                invalid=invalid,
+                kept=len(valid),
+                removed=len(invalid),
+            )
+
+        return valid
+
+    def _get_snp_dict(
+        self, question: str, *, rag_context: str = "",
+    ) -> SNPDictResponse:
+        """Query the LLM for SNP identifiers related to *question*.
+
+        When *rag_context* is non-empty it is injected into the prompt as
+        additional hints from the vector store.
+        """
         if self._cache is not None:
             cached_snp: SNPDictResponse | None = self._cache.get(NS_SNP, question)
             if cached_snp is not None:
@@ -189,6 +292,18 @@ class DNAAnalysisEngine:
             "identify the most relevant SNPs (Single Nucleotide Polymorphisms) "
             "and return them as a JSON dictionary.\n\n"
             f"Question: {question}\n\n"
+        )
+
+        if rag_context:
+            prompt += (
+                "The following SNPs from our database may be relevant. "
+                "Consider these as suggestions, but use your own knowledge "
+                "to determine the most appropriate SNPs. You may include "
+                "these or choose different ones:\n\n"
+                f"{rag_context}\n\n"
+            )
+
+        prompt += (
             "Return ONLY valid JSON in this exact format "
             "(no markdown, no explanation):\n"
             "{\n"
