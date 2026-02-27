@@ -73,7 +73,6 @@ omit = [
     "src/dna_rag/cache/base.py",
     "src/dna_rag/llm/base.py",
     "src/dna_rag/vector_store.py",
-    "src/dna_rag/ui/*",
 ]
 
 [tool.coverage.report]
