@@ -71,7 +71,7 @@ DNA_RAG_LLM_MODEL=gpt-4o-mini
 DNA_RAG_LLM_BASE_URL=https://api.openai.com/v1
 ```
 
-The `openai_compat` provider works with any API that implements the OpenAI `/chat/completions` format: OpenAI, Azure OpenAI, vLLM, LM Studio, etc.
+The `openai_compat` provider works with any API that implements the OpenAI `/chat/completions` format (e.g. OpenAI, vLLM, LM Studio). Only OpenAI and DeepSeek have been tested with real DNA data.
 
 **Per-step LLM** (optional) — use a different model for the interpretation step:
 

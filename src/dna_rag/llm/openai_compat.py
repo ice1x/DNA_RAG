@@ -1,7 +1,7 @@
 """Generic OpenAI-compatible LLM provider.
 
-Works with any API that follows the OpenAI ``/chat/completions`` format:
-Ollama, vLLM, LM Studio, Azure OpenAI, etc.
+Works with any API that follows the OpenAI ``/chat/completions`` format
+with Bearer token auth (e.g. OpenAI, vLLM, LM Studio).
 """
 
 from __future__ import annotations
