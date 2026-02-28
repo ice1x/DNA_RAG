@@ -6,6 +6,8 @@
 
 > Analyse your personal DNA data using Large Language Models.
 
+**[Try it live on Hugging Face Spaces](https://huggingface.co/spaces/ice1x/DNA_RAG)** — bring your own API key from DeepSeek or any OpenAI-compatible provider.
+
 **DNA RAG** is a Python pipeline that answers questions about personal genetic data from consumer DNA testing services (23andMe, AncestryDNA, MyHeritage, VCF). It uses a two-step LLM approach:
 
 1. **SNP identification** — the LLM determines which genetic variants (SNPs) are relevant to the user's question.
@@ -323,12 +325,6 @@ make docker-up     # Start via docker-compose
 - [ARCHITECTURE.md](ARCHITECTURE.md) — FastAPI design document and target architecture
 
 Interactive docs available at `http://localhost:8000/docs` when server is running.
-
-## Demo
-
-Try it live: [DNA RAG on Hugging Face Spaces](https://huggingface.co/spaces/ice1x/DNA_RAG)
-
-No API key needed on our side — bring your own key from DeepSeek or any OpenAI-compatible provider.
 
 ## License
 
