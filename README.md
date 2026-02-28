@@ -229,6 +229,8 @@ Format is auto-detected by file content (header), not extension.
 | AncestryDNA | `.txt` (TSV) | Tab | `AncestryDNA_raw.txt` |
 | MyHeritage | `.csv` | Comma | `MyHeritage_raw.csv` |
 
+> **Tested with** real DNA data purchased from [MyHeritage](https://www.myheritage.com/).
+
 ## Configuration
 
 All settings via `DNA_RAG_`-prefixed env vars or `.env` file.
