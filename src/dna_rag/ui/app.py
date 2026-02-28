@@ -211,21 +211,17 @@ def main() -> None:
         placeholder="e.g. lactose tolerance, caffeine metabolism",
     )
 
-    analyze_disabled = not question or st.session_state.dna_path is None
-    if st.button("Analyze", disabled=analyze_disabled, type="primary"):
-        if st.session_state.dna_path is None:
-            st.warning("Upload a DNA file first.")
-        else:
-            with st.spinner("Analyzing..."):
-                try:
-                    result = st.session_state.engine.analyze(
-                        question, st.session_state.dna_path
-                    )
-                    st.session_state.history.insert(0, result)
-                except AnalysisError as exc:
-                    st.warning(str(exc))
-                except DNARagError as exc:
-                    st.error(f"Error: {exc}")
+    if question and st.session_state.dna_path is not None:
+        with st.spinner("Analyzing..."):
+            try:
+                result = st.session_state.engine.analyze(
+                    question, st.session_state.dna_path
+                )
+                st.session_state.history.insert(0, result)
+            except AnalysisError as exc:
+                st.warning(str(exc))
+            except DNARagError as exc:
+                st.error(f"Error: {exc}")
 
     if not st.session_state.dna_path:
         st.info("Upload a DNA file in the sidebar to get started.")

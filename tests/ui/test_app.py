@@ -215,19 +215,20 @@ class TestAppFlow:
             f"Expected upload prompt in info messages, got: {info_texts}"
         )
 
-    def test_analyze_button_disabled_without_file(self):
-        """Analyze button is disabled when no DNA file is loaded."""
+    def test_no_analysis_without_file(self):
+        """Entering a question without a DNA file does not trigger analysis."""
         from streamlit.testing.v1 import AppTest
 
+        mock_engine = MagicMock()
         at = AppTest.from_file("src/dna_rag/ui/app.py")
-        at.session_state["engine"] = MagicMock()
+        at.session_state["engine"] = mock_engine
+        at.run(timeout=10)
+
+        at.text_input[0].set_value("lactose tolerance")
         at.run(timeout=10)
 
         assert not at.exception, f"Unexpected exception: {at.exception}"
-        buttons = at.button
-        analyze_btns = [b for b in buttons if b.label == "Analyze"]
-        assert len(analyze_btns) == 1
-        assert analyze_btns[0].disabled
+        mock_engine.analyze.assert_not_called()
 
     def test_config_error_shows_error_message(self):
         """ConfigurationError during engine init shows st.error."""
@@ -269,12 +270,8 @@ class TestAppFlow:
         at.session_state["file_id"] = "test-file-id"
         at.run(timeout=10)
 
-        # Type question
+        # Type question — analysis triggers automatically on submit
         at.text_input[0].set_value("lactose tolerance")
-        at.run(timeout=10)
-
-        # Click Analyze
-        at.button[0].click()
         at.run(timeout=10)
 
         assert not at.exception, f"Unexpected exception: {at.exception}"
@@ -299,8 +296,6 @@ class TestAppFlow:
 
         at.text_input[0].set_value("nonsense")
         at.run(timeout=10)
-        at.button[0].click()
-        at.run(timeout=10)
 
         assert not at.exception, f"Unexpected exception: {at.exception}"
         warnings = [w.value for w in at.warning]
@@ -321,8 +316,6 @@ class TestAppFlow:
         at.run(timeout=10)
 
         at.text_input[0].set_value("test")
-        at.run(timeout=10)
-        at.button[0].click()
         at.run(timeout=10)
 
         assert not at.exception, f"Unexpected exception: {at.exception}"
