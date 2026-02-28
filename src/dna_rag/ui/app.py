@@ -13,6 +13,7 @@ Run with::
 from __future__ import annotations
 
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -129,6 +130,40 @@ def _render_result(result: AnalysisResult) -> None:
     st.divider()
 
 
+def _format_history(history: list[AnalysisResult]) -> str:
+    """Format chat history as plain text for download."""
+    lines: list[str] = []
+    lines.append("DNA RAG — Chat History")
+    lines.append(f"Exported: {datetime.now():%Y-%m-%d %H:%M:%S}")
+    lines.append("=" * 60)
+
+    for i, result in enumerate(reversed(history), 1):
+        ts = result.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        lines.append("")
+        lines.append(f"[{ts}] Question #{i}")
+        lines.append(f"Q: {result.question}")
+        lines.append("")
+        lines.append("Answer:")
+        lines.append(result.interpretation)
+        lines.append("")
+        lines.append(
+            f"SNPs: {result.snp_count_matched} matched"
+            f" / {result.snp_count_requested} requested"
+        )
+        if result.matched_snps:
+            lines.append("Matched SNPs:")
+            for snp in result.matched_snps:
+                lines.append(
+                    f"  - {snp.rsid} | chr{snp.chromosome}:{snp.position}"
+                    f" | {snp.genotype} | {snp.gene} | {snp.trait}"
+                )
+        if result.cached:
+            lines.append("(cached result)")
+        lines.append("-" * 60)
+
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -205,6 +240,7 @@ def main() -> None:
                 except Exception as exc:
                     st.error(f"PRS error: {exc}")
 
+
     # --- Main: question + results -----------------------------------------
     question = st.text_input(
         "Ask a question about your DNA",
@@ -225,6 +261,15 @@ def main() -> None:
 
     if not st.session_state.dna_path:
         st.info("Upload a DNA file in the sidebar to get started.")
+
+    # --- Download chat history --------------------------------------------
+    if st.session_state.history:
+        st.download_button(
+            label="\u2b07 Download chat history",
+            data=_format_history(st.session_state.history),
+            file_name=f"dna_rag_chat_{datetime.now():%Y%m%d_%H%M%S}.txt",
+            mime="text/plain",
+        )
 
     # --- Render history ---------------------------------------------------
     for result in st.session_state.history:
