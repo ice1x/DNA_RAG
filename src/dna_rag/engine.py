@@ -244,6 +244,11 @@ class DNAAnalysisEngine:
     ) -> dict[str, SNPMetadata]:
         """Validate RSIDs against NCBI dbSNP, removing invalid ones.
 
+        When a valid SNP is found, the LLM-provided gene name is replaced
+        with the authoritative gene from dbSNP.  Validation metadata
+        (MAF, ClinVar significance) is stored in ``_validation_results``
+        for later use in the interpretation prompt.
+
         If no SNP database is configured or validation fails, returns
         *snps* unchanged (graceful degradation).
         """
@@ -262,6 +267,16 @@ class DNAAnalysisEngine:
         for rsid, meta in snps.items():
             validation = results.get(rsid)
             if validation is not None and validation.exists:
+                # Overwrite LLM gene with authoritative dbSNP gene
+                if validation.gene:
+                    if meta.gene.lower() != validation.gene.lower():
+                        logger.info(
+                            "gene_corrected",
+                            rsid=rsid,
+                            llm_gene=meta.gene,
+                            dbsnp_gene=validation.gene,
+                        )
+                    meta = meta.model_copy(update={"gene": validation.gene})
                 valid[rsid] = meta
             else:
                 invalid.append(rsid)
@@ -274,6 +289,8 @@ class DNAAnalysisEngine:
                 removed=len(invalid),
             )
 
+        # Store validation results for use in interpretation prompt
+        self._validation_results = results
         return valid
 
     def _get_snp_dict(
@@ -426,16 +443,41 @@ class DNAAnalysisEngine:
     def _interpret(self, df: DataFrame, question: str) -> str:
         """Ask the LLM to interpret the matched SNP data."""
         data_str = df.to_string(index=False)
+
+        # Build validated metadata block if available
+        validated_info = self._build_validated_info(df)
+
         prompt = (
             "You are a genetics expert providing personalised DNA analysis. "
             "The following SNP data was extracted from a user's DNA file "
             f"based on their question: {question}\n\n"
             f"{data_str}\n\n"
+        )
+
+        if validated_info:
+            prompt += (
+                "VERIFIED DATA from NCBI databases (use this as ground truth, "
+                "do NOT contradict it):\n"
+                f"{validated_info}\n\n"
+            )
+
+        prompt += (
             "Provide a clear, concise interpretation for the user. "
             "Include:\n"
             "1. What each relevant genotype means\n"
             "2. The overall assessment for the trait in question\n"
             "Keep the response under 500 words.\n\n"
+            "CRITICAL RULES:\n"
+            "- ONLY use gene names from the VERIFIED DATA above. "
+            "Do NOT invent or guess gene associations.\n"
+            "- If a SNP has no known clinical significance in ClinVar, "
+            "explicitly state that.\n"
+            "- If a SNP has a minor allele frequency (MAF) above 5%, "
+            "note that it is a common variant.\n"
+            "- If the evidence linking a SNP to the asked trait is weak "
+            "or non-existent, say so honestly instead of speculating.\n"
+            "- Do NOT claim a SNP is 'associated with' a trait unless "
+            "there is well-established research supporting it.\n\n"
             "IMPORTANT: You MUST respond in the SAME language as the user's "
             "question above. If the question is in Russian, respond in Russian. "
             "If in English, respond in English. Match the language exactly."
@@ -447,3 +489,34 @@ class DNAAnalysisEngine:
                 f"{self._medical_disclaimer}"
             )
         return self._interp_llm.invoke(prompt)
+
+    def _build_validated_info(self, df: DataFrame) -> str:
+        """Build a block of verified SNP metadata from NCBI validation results.
+
+        Includes authoritative gene name, MAF, and ClinVar significance
+        for each matched SNP.
+        """
+        results = getattr(self, "_validation_results", None)
+        if not results:
+            return ""
+
+        lines: list[str] = []
+        for _, row in df.iterrows():
+            rsid = str(row["RSID"]).lower()
+            vr = results.get(rsid)
+            if vr is None or not vr.exists:
+                continue
+            parts = [f"- {rsid}:"]
+            if vr.gene:
+                parts.append(f"gene={vr.gene}")
+            if vr.maf is not None:
+                parts.append(f"MAF={vr.maf:.4f} ({vr.maf_allele}, {vr.maf_study})")
+            if vr.clinical_significance:
+                parts.append(f"ClinVar={vr.clinical_significance}")
+                if vr.clinvar_trait:
+                    parts.append(f"trait={vr.clinvar_trait}")
+            else:
+                parts.append("ClinVar=not found")
+            lines.append(" ".join(parts))
+
+        return "\n".join(lines)
