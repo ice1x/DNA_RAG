@@ -14,9 +14,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Prepare HF Space README
+      - name: Prepare for HF Space
         run: |
-          cat > README.md << 'FRONTMATTER'
+          # Replace Dockerfile with HF-specific one
+          cp Dockerfile.hf Dockerfile
+
+          # Replace README with HF Space metadata
+          cat > README.md << 'EOF'
           ---
           title: DNA RAG
           emoji: 🧬
@@ -38,11 +42,12 @@ jobs:
           Your DNA data is never stored — everything runs in your session only.
 
           [GitHub](https://github.com/ice1x/DNA_RAG) | [PyPI](https://pypi.org/project/dna-rag/)
-          FRONTMATTER
+          EOF
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add README.md
-          git commit -m "ci: inject HF Space README frontmatter" --allow-empty
+          git add -A
+          git commit -m "ci: prepare for HF Space deploy"
 
       - name: Push to Hugging Face Space
         env:
