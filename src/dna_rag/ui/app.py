@@ -12,6 +12,7 @@ Run with::
 
 from __future__ import annotations
 
+import os
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -169,22 +170,50 @@ def _format_history(history: list[AnalysisResult]) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _has_env_api_key() -> bool:
+    """Check whether ``DNA_RAG_LLM_API_KEY`` is set in the environment."""
+    return bool(os.environ.get("DNA_RAG_LLM_API_KEY"))
+
+
+def _init_engine_from_env() -> bool:
+    """Try building the engine from environment / ``.env`` settings.
+
+    Returns ``True`` on success, ``False`` if API key is missing.
+    """
+    try:
+        settings = Settings()  # type: ignore[call-arg]
+        st.session_state.engine = _build_engine(settings)
+        return True
+    except (ConfigurationError, Exception):
+        return False
+
+
+def _init_engine_from_input(api_key: str, provider: str, model: str, base_url: str) -> bool:
+    """Build the engine from user-supplied values.
+
+    Returns ``True`` on success.
+    """
+    try:
+        settings = Settings(  # type: ignore[call-arg]
+            llm_api_key=api_key,
+            llm_provider=provider,
+            llm_model=model,
+            llm_base_url=base_url,
+        )
+        st.session_state.engine = _build_engine(settings)
+        return True
+    except (ConfigurationError, Exception) as exc:
+        st.error(f"Configuration error: {exc}")
+        return False
+
+
 def main() -> None:
     st.set_page_config(page_title="DNA RAG", page_icon="\U0001f9ec", layout="wide")
     st.title("\U0001f9ec DNA RAG")
 
-    # --- Init engine (once) ------------------------------------------------
-    if "engine" not in st.session_state:
-        try:
-            settings = Settings()  # type: ignore[call-arg]
-            st.session_state.engine = _build_engine(settings)
-        except (ConfigurationError, Exception) as exc:
-            st.error(f"Configuration error: {exc}")
-            st.info("Check your `.env` file or `DNA_RAG_*` environment variables.")
-            st.stop()
-
     # --- Init session state ------------------------------------------------
     defaults: dict[str, object] = {
+        "engine": None,
         "dna_path": None,
         "dna_df": None,
         "file_id": None,
@@ -194,8 +223,44 @@ def main() -> None:
         if key not in st.session_state:
             st.session_state[key] = default
 
-    # --- Sidebar: file upload + PRS ---------------------------------------
+    # --- Init engine: env first, then sidebar input -----------------------
+    if st.session_state.engine is None and _has_env_api_key():
+        _init_engine_from_env()
+
+    # --- Sidebar ----------------------------------------------------------
     with st.sidebar:
+        # --- API key input (only when env key is absent) ------------------
+        if not _has_env_api_key():
+            st.header("LLM Settings")
+            provider = st.selectbox(
+                "Provider",
+                ["deepseek", "openai_compat"],
+                help="deepseek or any OpenAI-compatible API",
+            )
+            api_key = st.text_input(
+                "API Key",
+                type="password",
+                help="Your LLM provider API key",
+            )
+            model = st.text_input(
+                "Model",
+                value="deepseek-r1:free" if provider == "deepseek" else "gpt-4o-mini",
+            )
+            default_url = (
+                "https://api.deepseek.com/v1"
+                if provider == "deepseek"
+                else "https://api.openai.com/v1"
+            )
+            base_url = st.text_input("Base URL", value=default_url)
+
+            if api_key and st.session_state.engine is None:
+                _init_engine_from_input(api_key, provider, model, base_url)
+
+            if not api_key:
+                st.warning("Enter your API key to start.")
+
+            st.divider()
+
         st.header("DNA file")
         uploaded = st.file_uploader(
             "Upload your DNA data",
@@ -240,6 +305,11 @@ def main() -> None:
                 except Exception as exc:
                     st.error(f"PRS error: {exc}")
 
+
+    # --- Guard: engine must be ready --------------------------------------
+    if st.session_state.engine is None:
+        st.info("Configure your LLM API key in the sidebar to get started.")
+        st.stop()
 
     # --- Main: question + results -----------------------------------------
     question = st.text_input(
