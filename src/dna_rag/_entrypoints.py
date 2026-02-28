@@ -20,7 +20,7 @@ def run_api() -> None:
             "Install them with: pip install dna-rag[api]",
             file=sys.stderr,
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     run()
 
 
@@ -34,5 +34,5 @@ def run_ui() -> None:
             "Install them with: pip install dna-rag[ui]",
             file=sys.stderr,
         )
-        raise SystemExit(1)
+        raise SystemExit(1) from None
     run()
