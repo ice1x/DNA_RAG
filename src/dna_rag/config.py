@@ -90,6 +90,15 @@ class Settings(BaseSettings):
         "auto", "23andme", "ancestrydna", "myheritage"
     ] = "auto"
 
+    # --- Disclaimer --------------------------------------------------------
+    medical_disclaimer: str = (
+        "Disclaimer: This analysis is for educational and research purposes only. "
+        "Genetic predisposition is not deterministic — environment, lifestyle, and "
+        "other factors play a significant role. Do not make health decisions based "
+        "on this output. Consult a qualified healthcare provider or genetic counselor "
+        "for medical interpretation of genetic data."
+    )
+
     @property
     def has_separate_interp_llm(self) -> bool:
         """Return ``True`` if a separate interpretation LLM is configured."""
