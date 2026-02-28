@@ -1,6 +1,7 @@
 # DNA RAG
 
 [![PyPI version](https://img.shields.io/pypi/v/dna-rag)](https://pypi.org/project/dna-rag/)
+[![Downloads](https://img.shields.io/pypi/dm/dna-rag)](https://pypi.org/project/dna-rag/)
 [![Python](https://img.shields.io/pypi/pyversions/dna-rag)](https://pypi.org/project/dna-rag/)
 [![License](https://img.shields.io/pypi/l/dna-rag)](https://github.com/ice1x/DNA_RAG/blob/main/LICENSE)
 
