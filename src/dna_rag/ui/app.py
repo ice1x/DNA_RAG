@@ -218,6 +218,10 @@ def _init_engine_from_input(
 def main() -> None:
     st.set_page_config(page_title="DNA RAG", page_icon="\U0001f9ec")
     st.title("\U0001f9ec DNA RAG")
+    st.caption(
+        "\u26a0\ufe0f **Not medical advice.** For educational and research purposes only. "
+        "Consult a healthcare provider for medical interpretation of genetic data."
+    )
 
     # --- Init session state ------------------------------------------------
     defaults: dict[str, object] = {
@@ -271,6 +275,12 @@ def main() -> None:
 
             if not api_key:
                 st.warning("Enter your API key to start.")
+
+            st.caption(
+                "\u26a0\ufe0f **Privacy:** Your DNA data is sent to the selected LLM "
+                "provider and is subject to their privacy policy and data retention "
+                "rules. This tool does not store your data."
+            )
 
             st.divider()
 
