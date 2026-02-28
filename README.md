@@ -8,6 +8,8 @@
 
 **[Try it live on Hugging Face Spaces](https://huggingface.co/spaces/ice1x/DNA_RAG)** — bring your own API key from DeepSeek or any OpenAI-compatible provider.
 
+> 💡 **Cost:** 2 days of active testing with OpenAI API didn't even cost $0.01 in tokens.
+
 **DNA RAG** is a Python pipeline that answers questions about personal genetic data from consumer DNA testing services (23andMe, AncestryDNA, MyHeritage, VCF). It uses a two-step LLM approach:
 
 1. **SNP identification** — the LLM determines which genetic variants (SNPs) are relevant to the user's question.
