@@ -10,6 +10,8 @@ These models define the contracts between components:
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -83,6 +85,7 @@ class AnalysisResult(BaseModel):
     snp_count_matched: int = Field(
         description="Number of those SNPs found in the user's DNA file",
     )
+    timestamp: datetime = Field(default_factory=datetime.now)
     cached: bool = False
     rag_context_used: bool = False
     validation_used: bool = False
