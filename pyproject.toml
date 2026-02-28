@@ -45,8 +45,8 @@ dev = [
 
 [project.scripts]
 dna-rag = "dna_rag.cli:main"
-dna-rag-api = "dna_rag.api.main:run"
-dna-rag-ui = "dna_rag.ui.app:run"
+dna-rag-api = "dna_rag._entrypoints:run_api"
+dna-rag-ui = "dna_rag._entrypoints:run_ui"
 
 [tool.hatch.version]
 path = "src/dna_rag/_version.py"
@@ -102,6 +102,7 @@ ignore_missing_imports = true
 [tool.ruff]
 target-version = "py311"
 line-length = 99
+extend-exclude = ["requirements.txt"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "SIM"]
