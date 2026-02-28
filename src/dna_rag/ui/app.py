@@ -143,7 +143,7 @@ def _format_history(history: list[AnalysisResult]) -> str:
         lines.append(f"[{ts}] Question #{i}")
         lines.append(f"Q: {result.question}")
         lines.append("")
-        lines.append(f"Answer:")
+        lines.append("Answer:")
         lines.append(result.interpretation)
         lines.append("")
         lines.append(
