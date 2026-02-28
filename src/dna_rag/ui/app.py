@@ -240,15 +240,6 @@ def main() -> None:
                 except Exception as exc:
                     st.error(f"PRS error: {exc}")
 
-        # --- Download chat history ---
-        if st.session_state.history:
-            st.header("Chat history")
-            st.download_button(
-                label="\u2b07 Download chat history",
-                data=_format_history(st.session_state.history),
-                file_name=f"dna_rag_chat_{datetime.now():%Y%m%d_%H%M%S}.txt",
-                mime="text/plain",
-            )
 
     # --- Main: question + results -----------------------------------------
     question = st.text_input(
@@ -270,6 +261,15 @@ def main() -> None:
 
     if not st.session_state.dna_path:
         st.info("Upload a DNA file in the sidebar to get started.")
+
+    # --- Download chat history --------------------------------------------
+    if st.session_state.history:
+        st.download_button(
+            label="\u2b07 Download chat history",
+            data=_format_history(st.session_state.history),
+            file_name=f"dna_rag_chat_{datetime.now():%Y%m%d_%H%M%S}.txt",
+            mime="text/plain",
+        )
 
     # --- Render history ---------------------------------------------------
     for result in st.session_state.history:

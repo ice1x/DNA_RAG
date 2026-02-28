@@ -12,7 +12,7 @@ st = pytest.importorskip("streamlit", reason="streamlit is required for UI tests
 from dna_rag.config import Settings  # noqa: E402
 from dna_rag.exceptions import AnalysisError, ConfigurationError, DNARagError  # noqa: E402
 from dna_rag.models import AnalysisResult, SNPResult  # noqa: E402
-from dna_rag.ui.app import _build_engine, _make_llm_provider  # noqa: E402
+from dna_rag.ui.app import _build_engine, _format_history, _make_llm_provider  # noqa: E402
 from tests.ui.conftest import INTERPRETATION  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -321,3 +321,104 @@ class TestAppFlow:
         assert not at.exception, f"Unexpected exception: {at.exception}"
         errors = [e.value for e in at.error]
         assert any("unexpected failure" in e for e in errors)
+
+    def test_history_populated_after_analysis(self, dna_file: Path):
+        """Session state history is populated after analysis."""
+        from streamlit.testing.v1 import AppTest
+
+        mock_engine = MagicMock()
+        mock_engine.analyze.return_value = _FAKE_RESULT
+
+        at = AppTest.from_file("src/dna_rag/ui/app.py")
+        at.session_state["engine"] = mock_engine
+        at.session_state["dna_path"] = dna_file
+        at.session_state["dna_df"] = "placeholder"
+        at.session_state["file_id"] = "test-file-id"
+        at.run(timeout=10)
+
+        # Before asking — history empty
+        assert len(at.session_state.history) == 0
+
+        # Ask a question → analysis → history populated
+        at.text_input[0].set_value("lactose tolerance")
+        at.run(timeout=10)
+
+        assert not at.exception, f"Unexpected exception: {at.exception}"
+        assert len(at.session_state.history) == 1
+        assert at.session_state.history[0].question == "lactose tolerance"
+
+    def test_download_button_renders_without_error(self):
+        """Download button renders with history without crashing."""
+        from streamlit.testing.v1 import AppTest
+
+        def script():
+            import streamlit as st
+
+            from dna_rag.ui.app import _format_history
+            from tests.ui.test_app import _FAKE_RESULT
+
+            st.download_button(
+                label="\u2b07 Download chat history",
+                data=_format_history([_FAKE_RESULT]),
+                file_name="test.txt",
+                mime="text/plain",
+            )
+
+        at = AppTest.from_function(script)
+        at.run(timeout=10)
+        assert not at.exception, f"Unexpected exception: {at.exception}"
+
+
+# ---------------------------------------------------------------------------
+# _format_history
+# ---------------------------------------------------------------------------
+
+
+class TestFormatHistory:
+    """Tests for _format_history output format."""
+
+    def test_empty_history(self):
+        """Empty history produces header only."""
+        result = _format_history([])
+        assert "DNA RAG" in result
+        assert "Exported:" in result
+        assert "Question" not in result
+
+    def test_single_result(self):
+        """Single result is formatted with timestamp, question, and answer."""
+        result = _format_history([_FAKE_RESULT])
+        assert "Q: lactose tolerance" in result
+        assert INTERPRETATION in result
+        assert "SNPs: 1 matched / 1 requested" in result
+        assert "rs1" in result
+        assert "LCT" in result
+
+    def test_multiple_results_chronological_order(self):
+        """Results are output in chronological order (oldest first)."""
+        second = _FAKE_RESULT.model_copy(update={"question": "caffeine metabolism"})
+        # history stores newest first (insert(0, ...)), so second is at index 0
+        result = _format_history([second, _FAKE_RESULT])
+        pos_q1 = result.index("Question #1")
+        pos_q2 = result.index("Question #2")
+        assert pos_q1 < pos_q2
+        # First question should be the oldest (lactose)
+        q1_block = result[pos_q1:pos_q2]
+        assert "lactose tolerance" in q1_block
+
+    def test_cached_result_marked(self):
+        """Cached results include '(cached result)' marker."""
+        result = _format_history([_FAKE_RESULT_CACHED])
+        assert "(cached result)" in result
+
+    def test_no_matched_snps(self):
+        """Result with no matched SNPs omits SNP details."""
+        result = _format_history([_EMPTY_RESULT])
+        assert "Q: test" in result
+        assert "Matched SNPs:" not in result
+        assert "SNPs: 0 matched / 1 requested" in result
+
+    def test_timestamp_present(self):
+        """Each entry has a timestamp in the output."""
+        result = _format_history([_FAKE_RESULT])
+        ts = _FAKE_RESULT.timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        assert ts in result
