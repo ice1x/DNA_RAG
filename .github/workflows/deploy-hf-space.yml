@@ -14,6 +14,36 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Prepare HF Space README
+        run: |
+          cat > README.md << 'FRONTMATTER'
+          ---
+          title: DNA RAG
+          emoji: 🧬
+          colorFrom: blue
+          colorTo: purple
+          sdk: docker
+          app_port: 8501
+          pinned: false
+          ---
+
+          # DNA RAG
+
+          Analyse your personal DNA data using Large Language Models.
+
+          Upload your raw DNA file (23andMe, AncestryDNA, MyHeritage, VCF) and ask questions in plain English.
+
+          **Bring your own API key** from DeepSeek or any OpenAI-compatible provider.
+
+          Your DNA data is never stored — everything runs in your session only.
+
+          [GitHub](https://github.com/ice1x/DNA_RAG) | [PyPI](https://pypi.org/project/dna-rag/)
+          FRONTMATTER
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "ci: inject HF Space README frontmatter" --allow-empty
+
       - name: Push to Hugging Face Space
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
