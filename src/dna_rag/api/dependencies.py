@@ -114,6 +114,7 @@ def get_engine() -> DNAAnalysisEngine:
         snp_database=snp_database,
         rag_search_results=settings.rag_search_results,
         rag_min_similarity=settings.rag_min_similarity,
+        medical_disclaimer=settings.medical_disclaimer,
     )
 
 

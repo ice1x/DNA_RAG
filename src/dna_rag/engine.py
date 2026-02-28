@@ -42,6 +42,7 @@ NS_FILE = "dna_file"
 NS_SNP = "snp_dict"
 NS_ANSWER = "answer"
 
+
 # Regex to match ```json ... ``` or ``` ... ```
 _CODE_BLOCK_RE = re.compile(
     r"```(?:json)?\s*\n?(.*?)\n?\s*```", flags=re.DOTALL,
@@ -79,6 +80,7 @@ class DNAAnalysisEngine:
         snp_database: SNPDatabase | None = None,
         rag_search_results: int = 10,
         rag_min_similarity: float = 0.3,
+        medical_disclaimer: str = "",
     ) -> None:
         self._snp_llm = snp_llm
         self._interp_llm = interpretation_llm or snp_llm
@@ -87,6 +89,7 @@ class DNAAnalysisEngine:
         self._snp_db = snp_database
         self._rag_search_results = rag_search_results
         self._rag_min_similarity = rag_min_similarity
+        self._medical_disclaimer = medical_disclaimer
 
     # ------------------------------------------------------------------
     # Public API
@@ -432,10 +435,15 @@ class DNAAnalysisEngine:
             "Include:\n"
             "1. What each relevant genotype means\n"
             "2. The overall assessment for the trait in question\n"
-            "3. Any important caveats about genetic interpretation\n"
             "Keep the response under 500 words.\n\n"
             "IMPORTANT: You MUST respond in the SAME language as the user's "
             "question above. If the question is in Russian, respond in Russian. "
             "If in English, respond in English. Match the language exactly."
         )
+        if self._medical_disclaimer:
+            prompt += (
+                "\n\nAt the end of your response, include the following disclaimer "
+                "translated into the same language as your response:\n"
+                f"{self._medical_disclaimer}"
+            )
         return self._interp_llm.invoke(prompt)
