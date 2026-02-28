@@ -333,4 +333,4 @@ Interactive docs available at `http://localhost:8000/docs` when server is runnin
 
 ## License
 
-Apache 2.0
+MIT
