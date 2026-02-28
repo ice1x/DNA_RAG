@@ -11,19 +11,24 @@ jobs:
     steps:
       - name: Checkout GitHub repo
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Prepare for HF Space
+      - name: Build and push clean deploy to HF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # Replace Dockerfile with HF-specific one
-          cp Dockerfile.hf Dockerfile
+          # Create a temp directory with only the files HF needs
+          DEPLOY_DIR=$(mktemp -d)
 
-          # Remove binary files (HF rejects them without Xet storage)
-          rm -rf docs/images/
+          # Copy source code
+          cp -r src/ "$DEPLOY_DIR/src/"
+          cp -r .streamlit/ "$DEPLOY_DIR/.streamlit/"
+          cp Dockerfile.hf "$DEPLOY_DIR/Dockerfile"
+          cp pyproject.toml "$DEPLOY_DIR/"
+          cp requirements.txt "$DEPLOY_DIR/"
+          cp LICENSE "$DEPLOY_DIR/"
 
-          # Replace README with HF Space metadata
-          cat > README.md << 'EOF'
+          # Create HF Space README with frontmatter
+          cat > "$DEPLOY_DIR/README.md" << 'EOF'
           ---
           title: DNA RAG
           emoji: 🧬
@@ -48,14 +53,12 @@ jobs:
           [GitHub](https://github.com/ice1x/DNA_RAG) | [PyPI](https://pypi.org/project/dna-rag/)
           EOF
 
+          # Init fresh git repo (no history = no binary file refs)
+          cd "$DEPLOY_DIR"
+          git init -b main
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "ci: prepare for HF Space deploy"
-
-      - name: Push to Hugging Face Space
-        env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: |
-          git remote add hf https://ice1x:${HF_TOKEN}@huggingface.co/spaces/ice1x/DNA_RAG || true
+          git commit -m "deploy from github.com/ice1x/DNA_RAG"
+          git remote add hf https://ice1x:${HF_TOKEN}@huggingface.co/spaces/ice1x/DNA_RAG
           git push hf main --force
