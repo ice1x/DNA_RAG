@@ -1,5 +1,9 @@
 # DNA RAG
 
+[![PyPI version](https://img.shields.io/pypi/v/dna-rag)](https://pypi.org/project/dna-rag/)
+[![Python](https://img.shields.io/pypi/pyversions/dna-rag)](https://pypi.org/project/dna-rag/)
+[![License](https://img.shields.io/pypi/l/dna-rag)](https://github.com/ice1x/DNA_RAG/blob/main/LICENSE)
+
 > Analyse your personal DNA data using Large Language Models.
 
 **DNA RAG** is a Python pipeline that answers questions about personal genetic data from consumer DNA testing services (23andMe, AncestryDNA, MyHeritage, VCF). It uses a two-step LLM approach:
@@ -12,14 +16,24 @@
 ### 1. Install
 
 ```bash
-# Core + dev tools
-pip install -e ".[dev]"
+# Engine only (no FastAPI, no Streamlit)
+pip install dna-rag
+
+# With Streamlit UI
+pip install dna-rag[ui]
 
 # With API server
-pip install -e ".[dev,api]"
+pip install dna-rag[api]
 
-# With vector store (RAG, optional — pulls PyTorch)
-pip install -e ".[rag]"
+# Everything
+pip install dna-rag[api,ui,rag]
+```
+
+**Development (from source):**
+
+```bash
+pip install -e ".[dev]"
+pip install -e ".[dev,api,ui]"
 ```
 
 ### 2. Configure
@@ -307,6 +321,34 @@ make docker-up     # Start via docker-compose
 - [ARCHITECTURE.md](ARCHITECTURE.md) — FastAPI design document and target architecture
 
 Interactive docs available at `http://localhost:8000/docs` when server is running.
+
+## Deploy to Hugging Face Spaces
+
+1. Create a new Space on [huggingface.co/new-space](https://huggingface.co/new-space) with **Streamlit** SDK.
+
+2. Clone the Space repo and copy the required files:
+
+```bash
+git clone https://huggingface.co/spaces/YOUR_USERNAME/dna-rag
+cp src/dna_rag/ui/app.py dna-rag/app.py
+cp requirements.txt dna-rag/
+cp -r src/dna_rag dna-rag/dna_rag
+```
+
+3. Set secrets in the Space settings (`Settings → Variables and secrets`):
+
+```
+DNA_RAG_LLM_API_KEY=your-key
+DNA_RAG_LLM_PROVIDER=deepseek
+DNA_RAG_LLM_MODEL=deepseek-r1:free
+DNA_RAG_LLM_BASE_URL=https://api.deepseek.com/v1
+```
+
+4. Push:
+
+```bash
+cd dna-rag && git add -A && git commit -m "deploy" && git push
+```
 
 ## License
 
