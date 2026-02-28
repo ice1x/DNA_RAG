@@ -95,7 +95,11 @@ class Settings(BaseSettings):
         "Disclaimer: This analysis is for educational and research purposes only. "
         "Genetic predisposition is not deterministic — environment, lifestyle, and "
         "other factors play a significant role. Do not make health decisions based "
-        "on this output. Consult a qualified healthcare provider or genetic counselor "
+        "on this output. Consumer DNA tests (23andMe, AncestryDNA, MyHeritage) have "
+        "known error rates, especially for insertions, deletions, and CNVs. "
+        "You can verify any SNP identifier (e.g. rs12345) by searching it at "
+        "https://www.ncbi.nlm.nih.gov/snp/ or https://www.snpedia.com/. "
+        "Consult a qualified healthcare provider or genetic counselor "
         "for medical interpretation of genetic data."
     )
 

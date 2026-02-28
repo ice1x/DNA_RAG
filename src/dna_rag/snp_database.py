@@ -40,15 +40,19 @@ _NS_SNP_DB = "snp_db"
 
 
 class SNPValidationResult(BaseModel):
-    """Result of validating a single RSID against dbSNP."""
+    """Result of validating a single RSID against dbSNP and optionally ClinVar."""
 
     rsid: str
     exists: bool
     chromosome: str | None = None
     position: int | None = None
     gene: str | None = None
-    clinical_significance: str | None = None
     alleles: list[str] = Field(default_factory=list)
+    maf: float | None = None
+    maf_allele: str | None = None
+    maf_study: str | None = None
+    clinical_significance: str | None = None
+    clinvar_trait: str | None = None
     validated: bool = False
     source: str = "unknown"
 
@@ -84,7 +88,7 @@ class SNPDatabase:
     # ------------------------------------------------------------------
 
     def validate_rsid(self, rsid: str) -> SNPValidationResult:
-        """Validate *rsid* and return metadata from dbSNP.
+        """Validate *rsid* and return metadata from dbSNP + ClinVar.
 
         Results are cached if a :class:`~dna_rag.cache.base.Cache` was provided.
         """
@@ -96,6 +100,13 @@ class SNPDatabase:
                 return cached
 
         result = self._fetch_from_dbsnp(rsid)
+
+        # Enrich with ClinVar data if the SNP exists
+        if result.exists:
+            clinvar = self._fetch_clinvar(rsid)
+            if clinvar:
+                result.clinical_significance = clinvar.get("significance")
+                result.clinvar_trait = clinvar.get("trait")
 
         if self._cache is not None:
             self._cache.set(_NS_SNP_DB, rsid, result)
@@ -140,6 +151,7 @@ class SNPDatabase:
             )
 
         snp_data = data["result"][snp_id]
+        maf_allele, maf_freq, maf_study = _extract_maf(snp_data)
         return SNPValidationResult(
             rsid=rsid,
             exists=True,
@@ -147,9 +159,63 @@ class SNPDatabase:
             position=_extract_int(snp_data, "chrpos"),
             gene=_extract_gene(snp_data),
             alleles=_extract_alleles(snp_data),
+            maf=maf_freq,
+            maf_allele=maf_allele,
+            maf_study=maf_study,
             validated=True,
             source="dbsnp",
         )
+
+
+    def _fetch_clinvar(self, rsid: str) -> dict[str, str] | None:
+        """Fetch clinical significance from NCBI ClinVar for *rsid*.
+
+        Uses a two-step approach: esearch to find ClinVar IDs, then
+        esummary to get clinical classification.  Returns ``None`` on
+        any failure (graceful degradation).
+        """
+        search_url = (
+            "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
+            f"?db=clinvar&term={rsid}&retmode=json"
+        )
+        try:
+            req = urllib.request.Request(
+                search_url,
+                headers={"User-Agent": "DNA_RAG/1.0 (Educational research tool)"},
+            )
+            with urllib.request.urlopen(req, timeout=self._timeout) as resp:  # noqa: S310
+                search_data: dict[str, Any] = json.loads(resp.read().decode())
+
+            id_list = search_data.get("esearchresult", {}).get("idlist", [])
+            if not id_list:
+                return None
+
+            # Fetch summary for the first result
+            summary_url = (
+                "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+                f"?db=clinvar&id={id_list[0]}&retmode=json"
+            )
+            req2 = urllib.request.Request(
+                summary_url,
+                headers={"User-Agent": "DNA_RAG/1.0 (Educational research tool)"},
+            )
+            with urllib.request.urlopen(req2, timeout=self._timeout) as resp2:  # noqa: S310
+                summary_data: dict[str, Any] = json.loads(resp2.read().decode())
+
+            entry = summary_data.get("result", {}).get(id_list[0], {})
+
+            # Extract germline classification (most common for consumer SNPs)
+            germline = entry.get("germline_classification", {})
+            significance = germline.get("description", "")
+            trait_set = germline.get("trait_set", [])
+            trait = trait_set[0].get("trait_name", "") if trait_set else ""
+
+            if significance:
+                return {"significance": significance, "trait": trait}
+        except (urllib.error.URLError, json.JSONDecodeError, OSError, KeyError, IndexError) as exc:
+            logger.warning("ClinVar fetch failed for %s: %s", rsid, exc)
+
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -186,3 +252,39 @@ def _extract_alleles(data: dict[str, Any]) -> list[str]:
         if "/" in val:
             return val.split("/")
     return []
+
+
+def _extract_maf(
+    data: dict[str, Any],
+) -> tuple[str | None, float | None, str | None]:
+    """Extract minor allele frequency from dbSNP ``global_mafs``.
+
+    Prefers GnomAD, then 1000Genomes, then falls back to the first entry.
+    Returns ``(allele, frequency, study)`` or ``(None, None, None)``.
+    """
+    mafs = data.get("global_mafs", [])
+    if not mafs or not isinstance(mafs, list):
+        return None, None, None
+
+    # Preferred studies in priority order
+    preferred = ("GnomAD_genomes", "GnomAD", "1000Genomes", "1000Genomes_30X")
+    chosen = None
+    for study_name in preferred:
+        for entry in mafs:
+            if entry.get("study") == study_name:
+                chosen = entry
+                break
+        if chosen:
+            break
+    if chosen is None:
+        chosen = mafs[0]
+
+    freq_str = chosen.get("freq", "")
+    study = chosen.get("study")
+    # Format: "T=0.082867/415" -> allele="T", freq=0.082867
+    try:
+        allele_part, _ = freq_str.split("/", 1)
+        allele, freq_val = allele_part.split("=", 1)
+        return allele, float(freq_val), study
+    except (ValueError, AttributeError):
+        return None, None, None
