@@ -1,0 +1,15 @@
+# Streamlit theme for DNA RAG
+# Used on Hugging Face Spaces and local development
+
+[theme]
+primaryColor = "#4A90D9"
+backgroundColor = "#0E1117"
+secondaryBackgroundColor = "#1A1F2E"
+textColor = "#FAFAFA"
+font = "sans serif"
+
+[server]
+headless = true
+
+[browser]
+gatherUsageStats = false
