@@ -7,6 +7,8 @@
 
 > Analyse your personal DNA data using Large Language Models.
 
+> **⚠️ Not medical advice.** This tool is for **educational and research purposes only**. Do not make health decisions based on its output. Always consult a qualified healthcare provider or genetic counselor for medical interpretation of genetic data.
+
 **[Try it live on Hugging Face Spaces](https://huggingface.co/spaces/ice1x/DNA_RAG)** — bring your own API key from DeepSeek or any OpenAI-compatible provider.
 
 > 💡 **Cost:** 2 days of active testing with OpenAI API didn't even cost $0.01 in tokens.
@@ -69,7 +71,7 @@ DNA_RAG_LLM_MODEL=gpt-4o-mini
 DNA_RAG_LLM_BASE_URL=https://api.openai.com/v1
 ```
 
-The `openai_compat` provider works with any API that implements the OpenAI `/chat/completions` format: OpenAI, Azure OpenAI, Ollama, vLLM, LM Studio, etc.
+The `openai_compat` provider works with any API that implements the OpenAI `/chat/completions` format: OpenAI, Azure OpenAI, vLLM, LM Studio, etc.
 
 **Per-step LLM** (optional) — use a different model for the interpretation step:
 
@@ -330,6 +332,15 @@ make docker-up     # Start via docker-compose
 - [ARCHITECTURE.md](ARCHITECTURE.md) — FastAPI design document and target architecture
 
 Interactive docs available at `http://localhost:8000/docs` when server is running.
+
+## Privacy & Data
+
+**Your genetic data is sensitive.** Understand how it is processed:
+
+- **You provide your own API key.** DNA data is sent to your chosen LLM provider (OpenAI, DeepSeek, etc.) and is subject to **that provider's privacy policy and data retention rules**. You are responsible for reviewing your provider's terms.
+- **Local models are possible** via the `openai_compat` provider with any local server that implements the OpenAI API format (vLLM, LM Studio, etc.) — in this case, no data leaves your machine. Note: quality of results depends on the model's capability.
+- **No data is stored by this tool.** DNA RAG does not collect, store, or transmit your genetic data to any third party. All processing happens in your session.
+- **LLM responses typically include caveats** that genetic predisposition is not deterministic and recommend consultation with a healthcare professional. This behavior depends on the model used.
 
 ## License
 
