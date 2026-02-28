@@ -16,9 +16,11 @@ import os
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
 import streamlit as st
+from pydantic import SecretStr
 
 from dna_rag.cache.memory import InMemoryCache
 from dna_rag.config import Settings
@@ -188,14 +190,19 @@ def _init_engine_from_env() -> bool:
         return False
 
 
-def _init_engine_from_input(api_key: str, provider: str, model: str, base_url: str) -> bool:
+def _init_engine_from_input(
+    api_key: str,
+    provider: Literal["deepseek", "openai_compat"],
+    model: str,
+    base_url: str,
+) -> bool:
     """Build the engine from user-supplied values.
 
     Returns ``True`` on success.
     """
     try:
         settings = Settings(  # type: ignore[call-arg]
-            llm_api_key=api_key,
+            llm_api_key=SecretStr(api_key),
             llm_provider=provider,
             llm_model=model,
             llm_base_url=base_url,
@@ -254,7 +261,12 @@ def main() -> None:
             base_url = st.text_input("Base URL", value=default_url)
 
             if api_key and st.session_state.engine is None:
-                _init_engine_from_input(api_key, provider, model, base_url)
+                _init_engine_from_input(
+                    api_key,
+                    provider,  # type: ignore[arg-type]
+                    model,
+                    base_url,
+                )
 
             if not api_key:
                 st.warning("Enter your API key to start.")
