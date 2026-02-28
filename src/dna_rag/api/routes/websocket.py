@@ -97,10 +97,14 @@ async def _run_streaming(
         return
     await _send(ws, "parsing", "done", {"rows": len(df)})
 
-    # --- Step 2: SNP identification ---
+    # --- Step 2: RAG context + SNP identification ---
+    rag_context = await asyncio.to_thread(engine._get_rag_context, question)
+
     await _send(ws, "snp_identification", "started", {"model": settings.llm_model})
     try:
-        snp_response = await asyncio.to_thread(engine._get_snp_dict, question)
+        snp_response = await asyncio.to_thread(
+            engine._get_snp_dict, question, rag_context=rag_context,
+        )
     except LLMError as exc:
         await _send_error(ws, f"SNP identification failed: {exc}")
         return

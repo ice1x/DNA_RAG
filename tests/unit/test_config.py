@@ -120,7 +120,7 @@ class TestRAGSettings:
     def test_rag_defaults(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setenv("DNA_RAG_LLM_API_KEY", "test")
         s = Settings()  # type: ignore[call-arg]
-        assert s.rag_enabled is False
+        assert s.rag_enabled is True
         assert s.rag_persist_directory is None
         assert s.rag_embedding_model == "all-MiniLM-L6-v2"
         assert s.rag_collection_name == "snp_traits"

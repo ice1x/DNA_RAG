@@ -230,6 +230,7 @@ def _build_metadata(
 # ---------------------------------------------------------------------------
 
 _SAMPLE_SNPS: list[dict[str, Any]] = [
+    # --- Health & traits ---
     {
         "rsid": "rs4988235",
         "trait": "Lactose tolerance",
@@ -277,6 +278,197 @@ _SAMPLE_SNPS: list[dict[str, Any]] = [
         "chromosome": "1",
         "position": 11796321,
         "description": "C677T variant affects vitamin B metabolism",
+    },
+    # --- Ancestry & population genetics ---
+    {
+        "rsid": "rs12913832",
+        "trait": "Eye color and European ancestry marker",
+        "gene": "HERC2",
+        "chromosome": "15",
+        "position": 28365618,
+        "description": (
+            "Major determinant of blue vs brown eye color. "
+            "Blue-eye allele is strongly associated with European ancestry"
+        ),
+    },
+    {
+        "rsid": "rs1426654",
+        "trait": "Skin pigmentation and ancestry informative marker",
+        "gene": "SLC24A5",
+        "chromosome": "15",
+        "position": 48426484,
+        "description": (
+            "A111T variant is nearly fixed in European populations. "
+            "Key ancestry-informative marker (AIM) for European vs African ancestry"
+        ),
+    },
+    {
+        "rsid": "rs16891982",
+        "trait": "Skin pigmentation and European ancestry marker",
+        "gene": "SLC45A2",
+        "chromosome": "5",
+        "position": 33951693,
+        "description": (
+            "L374F variant associated with lighter skin pigmentation. "
+            "High frequency in Europeans, ancestry-informative marker"
+        ),
+    },
+    {
+        "rsid": "rs2814778",
+        "trait": "Duffy blood group and African ancestry marker",
+        "gene": "ACKR1",
+        "chromosome": "1",
+        "position": 159174683,
+        "description": (
+            "Duffy-null allele (FY*O). Nearly fixed in sub-Saharan African "
+            "populations, provides malaria resistance. Key AIM for African ancestry"
+        ),
+    },
+    {
+        "rsid": "rs3827760",
+        "trait": "Hair thickness and East Asian ancestry marker",
+        "gene": "EDAR",
+        "chromosome": "2",
+        "position": 109513601,
+        "description": (
+            "370A variant associated with thicker hair and shovel-shaped incisors. "
+            "High frequency in East Asian and Native American populations"
+        ),
+    },
+    {
+        "rsid": "rs1800407",
+        "trait": "Eye color modifier and European ancestry",
+        "gene": "OCA2",
+        "chromosome": "15",
+        "position": 28230318,
+        "description": (
+            "R419Q variant modifies eye color. Contributes to green/hazel eyes. "
+            "Found primarily in European-descent populations"
+        ),
+    },
+    {
+        "rsid": "rs4833103",
+        "trait": "Ashkenazi Jewish ancestry marker",
+        "gene": "DNST",
+        "chromosome": "4",
+        "position": 38798648,
+        "description": (
+            "Population-specific allele frequency differences. "
+            "Ancestry-informative marker associated with Ashkenazi Jewish descent"
+        ),
+    },
+    {
+        "rsid": "rs7903146",
+        "trait": "Type 2 diabetes risk and population genetics marker",
+        "gene": "TCF7L2",
+        "chromosome": "10",
+        "position": 114758349,
+        "description": (
+            "Strongest known genetic risk factor for type 2 diabetes. "
+            "Allele frequencies differ across populations, useful as AIM"
+        ),
+    },
+    {
+        "rsid": "rs1229984",
+        "trait": "Alcohol metabolism and East Asian ancestry marker",
+        "gene": "ADH1B",
+        "chromosome": "4",
+        "position": 100239319,
+        "description": (
+            "His48Arg variant causes rapid alcohol metabolism and flushing. "
+            "High frequency in East Asian populations, ancestry-informative"
+        ),
+    },
+    {
+        "rsid": "rs671",
+        "trait": "Alcohol flush reaction and East Asian ancestry",
+        "gene": "ALDH2",
+        "chromosome": "12",
+        "position": 112241766,
+        "description": (
+            "Glu504Lys variant causes aldehyde dehydrogenase deficiency. "
+            "Almost exclusively found in East Asian populations"
+        ),
+    },
+    {
+        "rsid": "rs1805007",
+        "trait": "Red hair and Northern European ancestry",
+        "gene": "MC1R",
+        "chromosome": "16",
+        "position": 89919709,
+        "description": (
+            "R151C variant associated with red hair and fair skin. "
+            "Highest frequency in Northern European / Celtic populations"
+        ),
+    },
+    {
+        "rsid": "rs1805008",
+        "trait": "Red hair variant and European ancestry",
+        "gene": "MC1R",
+        "chromosome": "16",
+        "position": 89919736,
+        "description": (
+            "R160W variant associated with red hair phenotype. "
+            "Ancestry-informative for Northern European descent"
+        ),
+    },
+    {
+        "rsid": "rs28927680",
+        "trait": "Ashkenazi Jewish founder mutation marker",
+        "gene": "GBA",
+        "chromosome": "1",
+        "position": 155204239,
+        "description": (
+            "N370S variant in glucocerebrosidase gene. "
+            "Gaucher disease carrier frequency ~6% in Ashkenazi Jewish population, "
+            "key founder mutation marker"
+        ),
+    },
+    {
+        "rsid": "rs76763715",
+        "trait": "Ashkenazi Jewish ancestry and Tay-Sachs carrier",
+        "gene": "HEXA",
+        "chromosome": "15",
+        "position": 72638892,
+        "description": (
+            "Tay-Sachs disease variant with elevated carrier frequency "
+            "in Ashkenazi Jewish population (~1 in 30). "
+            "Population-specific founder mutation"
+        ),
+    },
+    {
+        "rsid": "rs80338939",
+        "trait": "Ashkenazi Jewish ancestry and BRCA1 founder mutation",
+        "gene": "BRCA1",
+        "chromosome": "17",
+        "position": 43106487,
+        "description": (
+            "185delAG BRCA1 founder mutation. Elevated frequency in "
+            "Ashkenazi Jewish population (~1%). Ancestry-informative marker"
+        ),
+    },
+    {
+        "rsid": "rs11549407",
+        "trait": "Mediterranean and Middle Eastern ancestry marker",
+        "gene": "HBB",
+        "chromosome": "11",
+        "position": 5227002,
+        "description": (
+            "Beta-thalassemia variant with elevated frequency in Mediterranean, "
+            "Middle Eastern, and South Asian populations. Population genetics marker"
+        ),
+    },
+    {
+        "rsid": "rs334",
+        "trait": "African ancestry marker and sickle cell trait",
+        "gene": "HBB",
+        "chromosome": "11",
+        "position": 5227002,
+        "description": (
+            "Sickle cell variant (HbS). Highest frequency in sub-Saharan African, "
+            "Mediterranean, and Middle Eastern populations. "
+            "Major ancestry-informative marker"
+        ),
     },
 ]
 

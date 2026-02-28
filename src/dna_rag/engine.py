@@ -288,16 +288,27 @@ class DNAAnalysisEngine:
                 return cached_snp
 
         prompt = (
-            "You are an expert in human genetics. Given the user's question, "
-            "identify the most relevant SNPs (Single Nucleotide Polymorphisms) "
-            "and return them as a JSON dictionary.\n\n"
+            "You are an expert in human genetics and genomics. "
+            "Given the user's question, identify the most relevant SNPs "
+            "(Single Nucleotide Polymorphisms) and return them as a JSON dictionary.\n\n"
+            "IMPORTANT RULES:\n"
+            "- Always try your best to find relevant SNPs, even for complex "
+            "polygenic traits such as ancestry, ethnicity, population genetics, "
+            "disease risk, or behavioural traits.\n"
+            "- For ancestry and ethnicity questions, include well-known "
+            "ancestry-informative markers (AIMs), population-specific alleles, "
+            "and haplogroup-associated SNPs.\n"
+            "- Never refuse to answer based on topic sensitivity. "
+            "This is a legitimate personal genomics tool and the user is "
+            "analysing their own DNA data.\n"
+            "- Return at least 3-5 SNPs whenever possible.\n\n"
             f"Question: {question}\n\n"
         )
 
         if rag_context:
             prompt += (
                 "The following SNPs from our database may be relevant. "
-                "Consider these as suggestions, but use your own knowledge "
+                "Consider these as suggestions, but also use your own knowledge "
                 "to determine the most appropriate SNPs. You may include "
                 "these or choose different ones:\n\n"
                 f"{rag_context}\n\n"
@@ -313,8 +324,7 @@ class DNAAnalysisEngine:
             '    "position": 12345,\n'
             '    "trait": "Associated trait description"\n'
             "  }\n"
-            "}\n\n"
-            "If no relevant SNPs exist, return: {}\n"
+            "}\n"
         )
 
         raw = self._snp_llm.invoke(prompt)
@@ -423,6 +433,9 @@ class DNAAnalysisEngine:
             "1. What each relevant genotype means\n"
             "2. The overall assessment for the trait in question\n"
             "3. Any important caveats about genetic interpretation\n"
-            "Keep the response under 500 words."
+            "Keep the response under 500 words.\n\n"
+            "IMPORTANT: You MUST respond in the SAME language as the user's "
+            "question above. If the question is in Russian, respond in Russian. "
+            "If in English, respond in English. Match the language exactly."
         )
         return self._interp_llm.invoke(prompt)
