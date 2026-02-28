@@ -27,31 +27,31 @@ jobs:
           cp requirements.txt "$DEPLOY_DIR/"
           cp LICENSE "$DEPLOY_DIR/"
 
-          # Create HF Space README with frontmatter
+          # Create HF Space README with frontmatter (no leading spaces!)
           cat > "$DEPLOY_DIR/README.md" << 'EOF'
-          ---
-          title: DNA RAG
-          emoji: 🧬
-          colorFrom: blue
-          colorTo: purple
-          sdk: docker
-          app_port: 8501
-          license: mit
-          pinned: false
-          ---
+---
+title: DNA RAG
+emoji: 🧬
+colorFrom: blue
+colorTo: purple
+sdk: docker
+app_port: 8501
+license: mit
+pinned: false
+---
 
-          # DNA RAG
+# DNA RAG
 
-          Analyse your personal DNA data using Large Language Models.
+Analyse your personal DNA data using Large Language Models.
 
-          Upload your raw DNA file (23andMe, AncestryDNA, MyHeritage, VCF) and ask questions in plain English.
+Upload your raw DNA file (23andMe, AncestryDNA, MyHeritage, VCF) and ask questions in plain English.
 
-          **Bring your own API key** from DeepSeek or any OpenAI-compatible provider.
+**Bring your own API key** from DeepSeek or any OpenAI-compatible provider.
 
-          Your DNA data is never stored — everything runs in your session only.
+Your DNA data is never stored — everything runs in your session only.
 
-          [GitHub](https://github.com/ice1x/DNA_RAG) | [PyPI](https://pypi.org/project/dna-rag/)
-          EOF
+[GitHub](https://github.com/ice1x/DNA_RAG) | [PyPI](https://pypi.org/project/dna-rag/)
+EOF
 
           # Init fresh git repo (no history = no binary file refs)
           cd "$DEPLOY_DIR"
