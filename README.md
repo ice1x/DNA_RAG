@@ -339,7 +339,17 @@ Interactive docs available at `http://localhost:8000/docs` when server is runnin
 
 - **You provide your own API key.** DNA data is sent to your chosen LLM provider and is subject to that provider's privacy policy and data retention rules. Review your provider's terms: [OpenAI Privacy Policy](https://openai.com/policies/privacy-policy), [DeepSeek Privacy Policy](https://www.deepseek.com/privacy).
 - **No data is stored by this tool.** DNA RAG does not collect, store, or transmit your genetic data to any third party. All processing happens in your session.
-- **LLM responses typically include caveats** that genetic predisposition is not deterministic and recommend consultation with a healthcare professional. This behavior depends on the model used.
+- **Every response includes a medical disclaimer** (configurable via `DNA_RAG_MEDICAL_DISCLAIMER`) reminding that genetic predisposition is not deterministic and recommending consultation with a healthcare professional. The LLM translates it into the response language.
+
+## Guardrails
+
+This tool is **not a medical device** and does not replace professional genetic counseling. Built-in safeguards:
+
+- **Structured LLM output** — Pydantic models validate every LLM response; malformed or unexpected output is rejected, not silently passed through.
+- **RSID format validation** — only SNP identifiers matching the `rs*` format are accepted; arbitrary text from the LLM is filtered out.
+- **Optional NCBI dbSNP validation** — when enabled (`DNA_RAG_VALIDATION_ENABLED=true`), each LLM-identified RSID is verified against the NCBI dbSNP database to confirm it is a real, known variant.
+- **Medical disclaimer in every response** — a configurable disclaimer is appended to each interpretation, translated into the user's language.
+- **No diagnosis or treatment recommendations** — the LLM prompt asks for genotype interpretation only, not medical advice.
 
 ## License
 
