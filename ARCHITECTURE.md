@@ -802,6 +802,9 @@ The API is an **additional** entry point, not a replacement.
 | Concern | Mitigation |
 |---------|------------|
 | DNA data is PII | Encrypted at rest (S3 SSE), HTTPS only, auto-expiry |
+| DNA data sent to LLM provider | User provides own API key; subject to provider's privacy policy ([OpenAI](https://openai.com/policies/privacy-policy), [DeepSeek](https://www.deepseek.com/privacy)). UI and README warn users explicitly. |
+| Not medical advice | Medical disclaimer in README, UI, and every LLM response (configurable via `DNA_RAG_MEDICAL_DISCLAIMER`). |
+| LLM hallucination (invalid SNPs) | Pydantic validation of LLM output, RSID format filtering (`rs*`), optional NCBI dbSNP verification. |
 | LLM prompt injection | System prompts are server-side, user input sanitized |
 | API key leakage | Keys hashed in DB, rotatable, scoped permissions |
 | Rate limiting | Per-key limits, Redis-backed sliding window |
@@ -812,4 +815,4 @@ The API is an **additional** entry point, not a replacement.
 
 ## License
 
-This architecture document is part of the DNA RAG project (Apache 2.0).
+This architecture document is part of the DNA RAG project (MIT).
