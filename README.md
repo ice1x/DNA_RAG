@@ -7,6 +7,8 @@
 
 > Analyse your personal DNA data using Large Language Models.
 
+**[Try it live on Hugging Face Spaces](https://huggingface.co/spaces/ice1x/DNA_RAG)** — bring your own API key from DeepSeek or any OpenAI-compatible provider.
+
 **DNA RAG** is a Python pipeline that answers questions about personal genetic data from consumer DNA testing services (23andMe, AncestryDNA, MyHeritage, VCF). It uses a two-step LLM approach:
 
 1. **SNP identification** — the LLM determines which genetic variants (SNPs) are relevant to the user's question.
@@ -324,61 +326,6 @@ make docker-up     # Start via docker-compose
 - [ARCHITECTURE.md](ARCHITECTURE.md) — FastAPI design document and target architecture
 
 Interactive docs available at `http://localhost:8000/docs` when server is running.
-
-## Demo
-
-Try it live: [DNA RAG on Hugging Face Spaces](https://huggingface.co/spaces/ice1x/DNA_RAG)
-
-No API key needed on our side — bring your own key from DeepSeek or any OpenAI-compatible provider.
-
-## Deploy to Hugging Face Spaces
-
-### Option A: Automatic (GitHub Actions)
-
-This repo includes a workflow that auto-deploys to HF Space on every push to `main`.
-
-1. Create a new Space on [huggingface.co/new-space](https://huggingface.co/new-space):
-   - Select **Docker** SDK, then choose the **Streamlit** template
-   - Name it (e.g. `dna-rag`)
-
-2. Create a Hugging Face [access token](https://huggingface.co/settings/tokens) with **write** permission.
-
-3. Add the token as a GitHub secret:
-   - Go to your GitHub repo → `Settings → Secrets and variables → Actions`
-   - Create secret `HF_TOKEN` with your HF token value
-
-4. Update the Space name in `.github/workflows/deploy-hf-space.yml` if needed.
-
-5. Push to `main` — the workflow will sync everything to HF automatically.
-
-### Option B: Manual
-
-1. Create a Space (Docker → Streamlit template) on [huggingface.co/new-space](https://huggingface.co/new-space).
-
-2. Clone the Space and push the project code:
-
-```bash
-git clone https://huggingface.co/spaces/YOUR_USERNAME/dna-rag
-# Copy project files into the Space repo
-cp -r src/dna_rag dna-rag/dna_rag
-cp src/dna_rag/ui/app.py dna-rag/app.py
-cp requirements.txt dna-rag/
-cp -r .streamlit dna-rag/
-cd dna-rag && git add -A && git commit -m "deploy" && git push
-```
-
-### Configuration (optional)
-
-If you want a default LLM available without user input, set secrets in the Space settings (`Settings → Variables and secrets`):
-
-```
-DNA_RAG_LLM_API_KEY=your-key
-DNA_RAG_LLM_PROVIDER=deepseek
-DNA_RAG_LLM_MODEL=deepseek-r1:free
-DNA_RAG_LLM_BASE_URL=https://api.deepseek.com/v1
-```
-
-If no secrets are set, users will enter their own API key in the sidebar (BYOK pattern).
 
 ## License
 
