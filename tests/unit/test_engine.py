@@ -16,6 +16,7 @@ from dna_rag.exceptions import (
     NoSNPsFoundError,
 )
 from dna_rag.models import SNPMetadata
+from dna_rag.snp_database import SNPDatabase, SNPValidationResult
 from tests.conftest import FakeLLMProvider
 
 # ---------------------------------------------------------------------------
@@ -318,3 +319,184 @@ class TestHashFile:
         f1.write_text("aaa")
         f2.write_text("bbb")
         assert DNAAnalysisEngine._hash_file(f1) != DNAAnalysisEngine._hash_file(f2)
+
+
+# ---------------------------------------------------------------------------
+# Gene correction via dbSNP validation
+# ---------------------------------------------------------------------------
+
+
+class _FakeSNPDatabase:
+    """Minimal SNPDatabase stub for engine tests."""
+
+    def __init__(self, results: dict[str, SNPValidationResult]) -> None:
+        self._results = results
+
+    def validate_batch(self, rsids: list[str]) -> dict[str, SNPValidationResult]:
+        return {r: self._results[r] for r in rsids if r in self._results}
+
+
+class TestGeneCorrection:
+    """Engine overwrites LLM gene names with dbSNP-verified genes."""
+
+    def test_gene_corrected_from_dbsnp(self, sample_23andme_file: Path):
+        """LLM says FCGR2A, dbSNP says FCGR3B -> result uses FCGR3B."""
+        snp_json = json.dumps({
+            "rs1": {
+                "gene": "WRONG_GENE",
+                "chromosome": "1",
+                "position": 111,
+                "trait": "Test trait",
+            }
+        })
+        fake_db = _FakeSNPDatabase({
+            "rs1": SNPValidationResult(
+                rsid="rs1", exists=True, gene="CORRECT_GENE",
+                chromosome="1", position=111, validated=True, source="dbsnp",
+            ),
+        })
+        llm = FakeLLMProvider([snp_json, "interpretation"])
+        engine = DNAAnalysisEngine(
+            snp_llm=llm, cache=None, snp_database=fake_db,
+        )
+
+        result = engine.analyze("test", sample_23andme_file)
+        assert result.matched_snps[0].gene == "CORRECT_GENE"
+
+    def test_invalid_snps_filtered_out(self, sample_23andme_file: Path):
+        """SNPs not found in dbSNP are removed."""
+        snp_json = json.dumps({
+            "rs1": {
+                "gene": "LCT",
+                "chromosome": "1",
+                "position": 111,
+                "trait": "Real",
+            },
+            "rs_fake": {
+                "gene": "FAKE",
+                "chromosome": "1",
+                "position": 999,
+                "trait": "Fake",
+            },
+        })
+        fake_db = _FakeSNPDatabase({
+            "rs1": SNPValidationResult(
+                rsid="rs1", exists=True, gene="LCT",
+                validated=True, source="dbsnp",
+            ),
+            "rs_fake": SNPValidationResult(
+                rsid="rs_fake", exists=False, validated=False, source="dbsnp",
+            ),
+        })
+        llm = FakeLLMProvider([snp_json, "interpretation"])
+        engine = DNAAnalysisEngine(
+            snp_llm=llm, cache=None, snp_database=fake_db,
+        )
+
+        result = engine.analyze("test", sample_23andme_file)
+        assert result.snp_count_matched == 1
+        assert result.matched_snps[0].rsid == "rs1"
+
+
+# ---------------------------------------------------------------------------
+# Verified metadata in interpretation prompt
+# ---------------------------------------------------------------------------
+
+
+class TestVerifiedMetadataInPrompt:
+    """Interpretation prompt includes NCBI-verified data."""
+
+    def test_verified_data_block_in_prompt(self, sample_23andme_file: Path):
+        """When validation is enabled, prompt contains VERIFIED DATA."""
+        snp_json = json.dumps({
+            "rs1": {
+                "gene": "LCT",
+                "chromosome": "1",
+                "position": 111,
+                "trait": "Lactose",
+            }
+        })
+        fake_db = _FakeSNPDatabase({
+            "rs1": SNPValidationResult(
+                rsid="rs1", exists=True, gene="LCT",
+                chromosome="1", position=111, validated=True,
+                source="dbsnp", maf=0.25, maf_allele="T",
+                maf_study="GnomAD_genomes",
+                clinical_significance="Benign",
+                clinvar_trait="Lactose intolerance",
+            ),
+        })
+        interp_llm = FakeLLMProvider(["interpretation result"])
+        llm = FakeLLMProvider([snp_json])
+        engine = DNAAnalysisEngine(
+            snp_llm=llm, interpretation_llm=interp_llm,
+            cache=None, snp_database=fake_db,
+        )
+
+        engine.analyze("lactose", sample_23andme_file)
+
+        # Check interpretation prompt contains verified data
+        interp_prompt = interp_llm.calls[0]
+        assert "VERIFIED DATA" in interp_prompt
+        assert "gene=LCT" in interp_prompt
+        assert "MAF=0.2500" in interp_prompt
+        assert "ClinVar=Benign" in interp_prompt
+        assert "trait=Lactose intolerance" in interp_prompt
+
+    def test_clinvar_not_found_shown(self, sample_23andme_file: Path):
+        """When ClinVar has no data, prompt shows 'ClinVar=not found'."""
+        snp_json = json.dumps({
+            "rs1": {
+                "gene": "LCT",
+                "chromosome": "1",
+                "position": 111,
+                "trait": "Lactose",
+            }
+        })
+        fake_db = _FakeSNPDatabase({
+            "rs1": SNPValidationResult(
+                rsid="rs1", exists=True, gene="LCT",
+                validated=True, source="dbsnp",
+            ),
+        })
+        interp_llm = FakeLLMProvider(["interpretation"])
+        llm = FakeLLMProvider([snp_json])
+        engine = DNAAnalysisEngine(
+            snp_llm=llm, interpretation_llm=interp_llm,
+            cache=None, snp_database=fake_db,
+        )
+
+        engine.analyze("lactose", sample_23andme_file)
+
+        interp_prompt = interp_llm.calls[0]
+        assert "ClinVar=not found" in interp_prompt
+
+    def test_anti_hallucination_rules_in_prompt(self, sample_23andme_file: Path):
+        """Prompt contains anti-hallucination instructions."""
+        snp_json = json.dumps({
+            "rs1": {
+                "gene": "LCT",
+                "chromosome": "1",
+                "position": 111,
+                "trait": "Lactose",
+            }
+        })
+        fake_db = _FakeSNPDatabase({
+            "rs1": SNPValidationResult(
+                rsid="rs1", exists=True, gene="LCT",
+                validated=True, source="dbsnp",
+            ),
+        })
+        interp_llm = FakeLLMProvider(["interpretation"])
+        llm = FakeLLMProvider([snp_json])
+        engine = DNAAnalysisEngine(
+            snp_llm=llm, interpretation_llm=interp_llm,
+            cache=None, snp_database=fake_db,
+        )
+
+        engine.analyze("test", sample_23andme_file)
+
+        interp_prompt = interp_llm.calls[0]
+        assert "CRITICAL RULES" in interp_prompt
+        assert "Do NOT invent or guess" in interp_prompt
+        assert "weak" in interp_prompt.lower()
