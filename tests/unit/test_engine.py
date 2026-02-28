@@ -16,7 +16,7 @@ from dna_rag.exceptions import (
     NoSNPsFoundError,
 )
 from dna_rag.models import SNPMetadata
-from dna_rag.snp_database import SNPDatabase, SNPValidationResult
+from dna_rag.snp_database import SNPValidationResult
 from tests.conftest import FakeLLMProvider
 
 # ---------------------------------------------------------------------------

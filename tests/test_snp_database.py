@@ -12,7 +12,6 @@ from unittest.mock import MagicMock, patch
 from dna_rag.cache.memory import InMemoryCache
 from dna_rag.snp_database import SNPDatabase, SNPValidationResult
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
