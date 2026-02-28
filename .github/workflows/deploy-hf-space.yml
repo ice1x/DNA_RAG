@@ -14,10 +14,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install Git LFS
+        run: git lfs install
+
       - name: Prepare for HF Space
         run: |
           # Replace Dockerfile with HF-specific one
           cp Dockerfile.hf Dockerfile
+
+          # Track binary files with Git LFS (required by HF)
+          git lfs track "*.png" "*.jpg" "*.jpeg" "*.gif" "*.webp"
 
           # Replace README with HF Space metadata
           cat > README.md << 'EOF'

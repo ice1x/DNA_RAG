@@ -215,7 +215,7 @@ def _init_engine_from_input(
 
 
 def main() -> None:
-    st.set_page_config(page_title="DNA RAG", page_icon="\U0001f9ec", layout="wide")
+    st.set_page_config(page_title="DNA RAG", page_icon="\U0001f9ec")
     st.title("\U0001f9ec DNA RAG")
 
     # --- Init session state ------------------------------------------------
