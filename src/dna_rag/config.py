@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     cache_ttl_seconds: int = Field(3600, ge=0)
 
     # --- RAG (Vector Store) ------------------------------------------------
-    rag_enabled: bool = False
+    rag_enabled: bool = True
     rag_persist_directory: str | None = None
     rag_embedding_model: str = "all-MiniLM-L6-v2"
     rag_collection_name: str = "snp_traits"
