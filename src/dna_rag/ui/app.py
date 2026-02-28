@@ -279,7 +279,9 @@ def main() -> None:
             st.caption(
                 "\u26a0\ufe0f **Privacy:** Your DNA data is sent to the selected LLM "
                 "provider and is subject to their privacy policy and data retention "
-                "rules. This tool does not store your data."
+                "rules. Review: [OpenAI](https://openai.com/policies/privacy-policy) · "
+                "[DeepSeek](https://www.deepseek.com/privacy). "
+                "This tool does not store your data."
             )
 
             st.divider()

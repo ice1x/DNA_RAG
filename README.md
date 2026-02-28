@@ -337,7 +337,7 @@ Interactive docs available at `http://localhost:8000/docs` when server is runnin
 
 **Your genetic data is sensitive.** Understand how it is processed:
 
-- **You provide your own API key.** DNA data is sent to your chosen LLM provider (OpenAI, DeepSeek) and is subject to **that provider's privacy policy and data retention rules**. You are responsible for reviewing your provider's terms.
+- **You provide your own API key.** DNA data is sent to your chosen LLM provider and is subject to that provider's privacy policy and data retention rules. Review your provider's terms: [OpenAI Privacy Policy](https://openai.com/policies/privacy-policy), [DeepSeek Privacy Policy](https://www.deepseek.com/privacy).
 - **No data is stored by this tool.** DNA RAG does not collect, store, or transmit your genetic data to any third party. All processing happens in your session.
 - **LLM responses typically include caveats** that genetic predisposition is not deterministic and recommend consultation with a healthcare professional. This behavior depends on the model used.
 
