@@ -34,6 +34,7 @@ jobs:
           colorTo: purple
           sdk: docker
           app_port: 8501
+          license: mit
           pinned: false
           ---
 
