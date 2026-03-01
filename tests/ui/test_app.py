@@ -110,6 +110,35 @@ class TestBuildEngine:
         engine = _build_engine(settings)
         assert engine._interp_llm is not engine._snp_llm
 
+    def test_builds_with_validation_enabled(self, monkeypatch: pytest.MonkeyPatch):
+        """validation_enabled=True creates engine with SNPDatabase."""
+        monkeypatch.setenv("DNA_RAG_LLM_API_KEY", "test-key")
+        settings = Settings(
+            llm_provider="deepseek",
+            llm_api_key="k",  # type: ignore[arg-type]
+            validation_enabled=True,
+            rag_enabled=False,
+        )
+
+        engine = _build_engine(settings)
+
+        from dna_rag.snp_database import SNPDatabase
+
+        assert isinstance(engine._snp_db, SNPDatabase)
+
+    def test_builds_without_validation(self, monkeypatch: pytest.MonkeyPatch):
+        """validation_enabled=False creates engine without SNPDatabase."""
+        monkeypatch.setenv("DNA_RAG_LLM_API_KEY", "test-key")
+        settings = Settings(
+            llm_provider="deepseek",
+            llm_api_key="k",  # type: ignore[arg-type]
+            validation_enabled=False,
+            rag_enabled=False,
+        )
+
+        engine = _build_engine(settings)
+        assert engine._snp_db is None
+
 
 # ---------------------------------------------------------------------------
 # _render_answer (via AppTest)
