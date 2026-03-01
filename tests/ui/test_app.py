@@ -615,3 +615,87 @@ class TestFormatHistoryClinVar:
         result = _format_history([_FAKE_RESULT])
         assert "ClinVar:" not in result
         assert "MAF:" not in result
+
+
+# ---------------------------------------------------------------------------
+# NCBI Verification toggle tests
+# ---------------------------------------------------------------------------
+
+
+class TestNCBIToggle:
+    """Tests for the NCBI verification toggle in the sidebar."""
+
+    def test_toggle_appears_when_engine_configured(self):
+        """Toggle is rendered in the sidebar when engine is available."""
+        from streamlit.testing.v1 import AppTest
+
+        at = AppTest.from_file("src/dna_rag/ui/app.py")
+        at.session_state["engine"] = MagicMock()
+        at.run(timeout=10)
+
+        assert not at.exception, f"Unexpected exception: {at.exception}"
+        toggles = at.toggle
+        assert len(toggles) >= 1, "Expected at least one toggle widget"
+        ncbi_toggle = toggles(key="ncbi_validation")
+        assert ncbi_toggle is not None, "NCBI validation toggle not found"
+
+    def test_toggle_default_off(self):
+        """Toggle defaults to OFF when validation_enabled is False."""
+        from streamlit.testing.v1 import AppTest
+
+        at = AppTest.from_file("src/dna_rag/ui/app.py")
+        at.session_state["engine"] = MagicMock()
+        at.session_state["settings"] = Settings(
+            llm_api_key="k",  # type: ignore[arg-type]
+            validation_enabled=False,
+        )
+        at.run(timeout=10)
+
+        assert not at.exception, f"Unexpected exception: {at.exception}"
+        assert at.session_state.ncbi_validation is False
+
+    def test_toggle_default_on_from_env(self, monkeypatch: pytest.MonkeyPatch):
+        """Toggle defaults to ON when validation_enabled is True in settings."""
+        from streamlit.testing.v1 import AppTest
+
+        monkeypatch.setenv("DNA_RAG_LLM_API_KEY", "test-key")
+        at = AppTest.from_file("src/dna_rag/ui/app.py")
+        at.session_state["engine"] = MagicMock()
+        at.session_state["settings"] = Settings(
+            llm_api_key="k",  # type: ignore[arg-type]
+            validation_enabled=True,
+        )
+        at.run(timeout=10)
+
+        assert not at.exception, f"Unexpected exception: {at.exception}"
+        assert at.session_state.ncbi_validation is True
+
+    def test_toggle_on_rebuilds_engine_with_validation(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Switching toggle ON rebuilds engine with validation_enabled=True."""
+        from streamlit.testing.v1 import AppTest
+
+        monkeypatch.setenv("DNA_RAG_LLM_API_KEY", "test-key")
+
+        at = AppTest.from_file("src/dna_rag/ui/app.py")
+        mock_engine = MagicMock()
+        at.session_state["engine"] = mock_engine
+        at.session_state["settings"] = Settings(
+            llm_api_key="k",  # type: ignore[arg-type]
+            validation_enabled=False,
+            rag_enabled=False,  # avoid sentence_transformers import
+        )
+        at.run(timeout=10)
+        assert not at.exception, f"Unexpected exception: {at.exception}"
+        assert at.session_state.settings.validation_enabled is False
+
+        # Flip toggle ON — engine is rebuilt with new settings
+        at.toggle(key="ncbi_validation").set_value(True)
+        at.run(timeout=10)
+
+        assert not at.exception, f"Unexpected exception: {at.exception}"
+        # Settings should now have validation_enabled=True
+        assert at.session_state.settings.validation_enabled is True
+        # Engine should have been replaced (not the original mock)
+        assert at.session_state.engine is not mock_engine

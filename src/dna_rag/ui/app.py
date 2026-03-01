@@ -242,6 +242,7 @@ def _init_engine_from_env() -> bool:
     try:
         settings = Settings()  # type: ignore[call-arg]
         st.session_state.engine = _build_engine(settings)
+        st.session_state.settings = settings
         return True
     except (ConfigurationError, Exception):
         return False
@@ -265,6 +266,7 @@ def _init_engine_from_input(
             llm_base_url=base_url,
         )
         st.session_state.engine = _build_engine(settings)
+        st.session_state.settings = settings
         return True
     except (ConfigurationError, Exception) as exc:
         st.error(f"Configuration error: {exc}")
@@ -282,6 +284,7 @@ def main() -> None:
     # --- Init session state ------------------------------------------------
     defaults: dict[str, object] = {
         "engine": None,
+        "settings": None,
         "dna_path": None,
         "dna_df": None,
         "file_id": None,
@@ -369,6 +372,38 @@ def main() -> None:
         if st.session_state.dna_df is not None:
             st.success(f"{len(st.session_state.dna_df):,} variants loaded")
 
+        # --- NCBI Verification toggle ---
+        if st.session_state.engine is not None:
+            st.divider()
+            # Initialise toggle default from current settings
+            if "ncbi_validation" not in st.session_state:
+                stored_s = st.session_state.settings
+                st.session_state.ncbi_validation = (
+                    stored_s.validation_enabled
+                    if stored_s is not None
+                    else False
+                )
+            ncbi_on = st.toggle(
+                "\U0001f52c NCBI verification",
+                key="ncbi_validation",
+                help=(
+                    "Validate SNPs against NCBI dbSNP and ClinVar. "
+                    "Adds clinical significance data but takes longer "
+                    "(~3-10 seconds per query)."
+                ),
+            )
+            cur_settings = st.session_state.settings
+            if (
+                cur_settings is not None
+                and ncbi_on != cur_settings.validation_enabled
+            ):
+                new_settings = cur_settings.model_copy(
+                    update={"validation_enabled": ncbi_on},
+                )
+                st.session_state.engine = _build_engine(new_settings)
+                st.session_state.settings = new_settings
+
+        if st.session_state.dna_df is not None:
             # --- Polygenic Risk Scores ---
             st.header("Polygenic Risk Scores")
             from dna_rag.polygenic import PolygenicScoreCalculator
