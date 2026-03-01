@@ -127,7 +127,7 @@ def _render_answer(result: AnalysisResult) -> None:
     if result.validation_used:
         col3.metric("Validated", "\u2705 NCBI")
     else:
-        col3.metric("Validated", "\u2014")
+        col3.metric("Validated", "Disabled")
 
     if result.matched_snps:
         # --- ClinVar comparison block ---
