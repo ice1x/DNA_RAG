@@ -381,7 +381,7 @@ def main() -> None:
                 st.session_state.ncbi_validation = (
                     stored_s.validation_enabled
                     if stored_s is not None
-                    else False
+                    else True
                 )
             ncbi_on = st.toggle(
                 "\U0001f52c NCBI verification",

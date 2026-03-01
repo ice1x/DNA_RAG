@@ -668,8 +668,22 @@ class TestNCBIToggle:
         ncbi_toggle = toggles(key="ncbi_validation")
         assert ncbi_toggle is not None, "NCBI validation toggle not found"
 
-    def test_toggle_default_off(self):
-        """Toggle defaults to OFF when validation_enabled is False."""
+    def test_toggle_default_on(self):
+        """Toggle defaults to ON (validation_enabled=True is the new default)."""
+        from streamlit.testing.v1 import AppTest
+
+        at = AppTest.from_file("src/dna_rag/ui/app.py")
+        at.session_state["engine"] = MagicMock()
+        at.session_state["settings"] = Settings(
+            llm_api_key="k",  # type: ignore[arg-type]
+        )
+        at.run(timeout=10)
+
+        assert not at.exception, f"Unexpected exception: {at.exception}"
+        assert at.session_state.ncbi_validation is True
+
+    def test_toggle_off_when_explicitly_disabled(self):
+        """Toggle is OFF when validation_enabled is explicitly False."""
         from streamlit.testing.v1 import AppTest
 
         at = AppTest.from_file("src/dna_rag/ui/app.py")
@@ -682,22 +696,6 @@ class TestNCBIToggle:
 
         assert not at.exception, f"Unexpected exception: {at.exception}"
         assert at.session_state.ncbi_validation is False
-
-    def test_toggle_default_on_from_env(self, monkeypatch: pytest.MonkeyPatch):
-        """Toggle defaults to ON when validation_enabled is True in settings."""
-        from streamlit.testing.v1 import AppTest
-
-        monkeypatch.setenv("DNA_RAG_LLM_API_KEY", "test-key")
-        at = AppTest.from_file("src/dna_rag/ui/app.py")
-        at.session_state["engine"] = MagicMock()
-        at.session_state["settings"] = Settings(
-            llm_api_key="k",  # type: ignore[arg-type]
-            validation_enabled=True,
-        )
-        at.run(timeout=10)
-
-        assert not at.exception, f"Unexpected exception: {at.exception}"
-        assert at.session_state.ncbi_validation is True
 
     def test_toggle_on_rebuilds_engine_with_validation(
         self, monkeypatch: pytest.MonkeyPatch,
