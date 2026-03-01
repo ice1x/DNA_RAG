@@ -114,9 +114,8 @@ def _build_engine(settings: Settings):  # noqa: ANN202
 # ---------------------------------------------------------------------------
 
 
-def _render_result(result: AnalysisResult) -> None:
-    """Render a single analysis result."""
-    st.subheader(result.question)
+def _render_answer(result: AnalysisResult) -> None:
+    """Render the assistant's answer inside a ``st.chat_message`` context."""
     if result.cached:
         st.caption("(cached result)")
 
@@ -131,8 +130,6 @@ def _render_result(result: AnalysisResult) -> None:
             rows = [snp.model_dump() for snp in result.matched_snps]
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
-    st.divider()
-
 
 def _format_history(history: list[AnalysisResult]) -> str:
     """Format chat history as plain text for download."""
@@ -141,7 +138,7 @@ def _format_history(history: list[AnalysisResult]) -> str:
     lines.append(f"Exported: {datetime.now():%Y-%m-%d %H:%M:%S}")
     lines.append("=" * 60)
 
-    for i, result in enumerate(reversed(history), 1):
+    for i, result in enumerate(history, 1):
         ts = result.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         lines.append("")
         lines.append(f"[{ts}] Question #{i}")
@@ -330,45 +327,53 @@ def main() -> None:
                 except Exception as exc:
                     st.error(f"PRS error: {exc}")
 
+        # --- Download chat history (in sidebar) ---
+        if st.session_state.history:
+            st.divider()
+            st.download_button(
+                label="\u2b07 Download chat history",
+                data=_format_history(st.session_state.history),
+                file_name=f"dna_rag_chat_{datetime.now():%Y%m%d_%H%M%S}.txt",
+                mime="text/plain",
+            )
 
     # --- Guard: engine must be ready --------------------------------------
     if st.session_state.engine is None:
         st.info("Configure your LLM API key in the sidebar to get started.")
         st.stop()
 
-    # --- Main: question + results -----------------------------------------
-    question = st.text_input(
-        "Ask a question about your DNA",
-        placeholder="e.g. lactose tolerance, caffeine metabolism",
+    # --- Render chat history ----------------------------------------------
+    for result in st.session_state.history:
+        with st.chat_message("user"):
+            st.markdown(result.question)
+        with st.chat_message("assistant"):
+            _render_answer(result)
+
+    # --- Welcome prompt when no file loaded yet ---------------------------
+    if not st.session_state.dna_path and not st.session_state.history:
+        with st.chat_message("assistant"):
+            st.info("Upload a DNA file in the sidebar to get started.")
+
+    # --- Chat input (pinned to bottom) ------------------------------------
+    question = st.chat_input(
+        "Ask a question about your DNA (e.g. lactose tolerance, caffeine metabolism)",
+        disabled=st.session_state.dna_path is None,
     )
 
     if question and st.session_state.dna_path is not None:
-        with st.spinner("Analyzing..."):
+        with st.chat_message("user"):
+            st.markdown(question)
+        with st.chat_message("assistant"), st.spinner("Analyzing..."):
             try:
                 result = st.session_state.engine.analyze(
                     question, st.session_state.dna_path
                 )
-                st.session_state.history.insert(0, result)
+                st.session_state.history.append(result)
+                st.rerun()
             except AnalysisError as exc:
                 st.warning(str(exc))
             except DNARagError as exc:
                 st.error(f"Error: {exc}")
-
-    if not st.session_state.dna_path:
-        st.info("Upload a DNA file in the sidebar to get started.")
-
-    # --- Download chat history --------------------------------------------
-    if st.session_state.history:
-        st.download_button(
-            label="\u2b07 Download chat history",
-            data=_format_history(st.session_state.history),
-            file_name=f"dna_rag_chat_{datetime.now():%Y%m%d_%H%M%S}.txt",
-            mime="text/plain",
-        )
-
-    # --- Render history ---------------------------------------------------
-    for result in st.session_state.history:
-        _render_result(result)
 
 
 main()

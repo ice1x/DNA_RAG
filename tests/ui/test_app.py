@@ -107,7 +107,7 @@ class TestBuildEngine:
 
 
 # ---------------------------------------------------------------------------
-# _render_result (via AppTest)
+# _render_answer (via AppTest)
 # ---------------------------------------------------------------------------
 
 _FAKE_RESULT = AnalysisResult(
@@ -140,32 +140,32 @@ _EMPTY_RESULT = AnalysisResult(
 )
 
 
-class TestRenderResult:
-    """_render_result displays analysis results without errors."""
+class TestRenderAnswer:
+    """_render_answer displays analysis results without errors."""
 
-    def test_render_result_basic(self):
-        """_render_result runs without raising."""
+    def test_render_answer_basic(self):
+        """_render_answer runs without raising."""
         from streamlit.testing.v1 import AppTest
 
         def script():
-            from dna_rag.ui.app import _render_result  # noqa: F811
+            from dna_rag.ui.app import _render_answer  # noqa: F811
             from tests.ui.test_app import _FAKE_RESULT
 
-            _render_result(_FAKE_RESULT)
+            _render_answer(_FAKE_RESULT)
 
         at = AppTest.from_function(script)
         at.run(timeout=10)
         assert not at.exception, f"Unexpected exception: {at.exception}"
 
-    def test_render_result_cached_label(self):
+    def test_render_answer_cached_label(self):
         """Cached results show the '(cached result)' caption."""
         from streamlit.testing.v1 import AppTest
 
         def script():
-            from dna_rag.ui.app import _render_result  # noqa: F811
+            from dna_rag.ui.app import _render_answer  # noqa: F811
             from tests.ui.test_app import _FAKE_RESULT_CACHED
 
-            _render_result(_FAKE_RESULT_CACHED)
+            _render_answer(_FAKE_RESULT_CACHED)
 
         at = AppTest.from_function(script)
         at.run(timeout=10)
@@ -173,15 +173,15 @@ class TestRenderResult:
         captions = [c.value for c in at.caption]
         assert any("cached" in c.lower() for c in captions)
 
-    def test_render_result_no_matched_snps(self):
+    def test_render_answer_no_matched_snps(self):
         """Result with zero matched SNPs renders without error."""
         from streamlit.testing.v1 import AppTest
 
         def script():
-            from dna_rag.ui.app import _render_result  # noqa: F811
+            from dna_rag.ui.app import _render_answer  # noqa: F811
             from tests.ui.test_app import _EMPTY_RESULT
 
-            _render_result(_EMPTY_RESULT)
+            _render_answer(_EMPTY_RESULT)
 
         at = AppTest.from_function(script)
         at.run(timeout=10)
@@ -216,7 +216,7 @@ class TestAppFlow:
         )
 
     def test_no_analysis_without_file(self):
-        """Entering a question without a DNA file does not trigger analysis."""
+        """Chat input is disabled when no DNA file is uploaded."""
         from streamlit.testing.v1 import AppTest
 
         mock_engine = MagicMock()
@@ -224,10 +224,9 @@ class TestAppFlow:
         at.session_state["engine"] = mock_engine
         at.run(timeout=10)
 
-        at.text_input[0].set_value("lactose tolerance")
-        at.run(timeout=10)
-
         assert not at.exception, f"Unexpected exception: {at.exception}"
+        # chat_input should be present but disabled (no DNA file)
+        assert len(at.chat_input) == 1
         mock_engine.analyze.assert_not_called()
 
     def test_config_error_shows_error_message(self):
@@ -257,7 +256,7 @@ class TestAppFlow:
         assert any("bad config" in e for e in errors)
 
     def test_full_analysis_flow(self, dna_file: Path):
-        """Inject mock engine → ask question → get result."""
+        """Inject mock engine -> ask question -> get result."""
         from streamlit.testing.v1 import AppTest
 
         mock_engine = MagicMock()
@@ -271,7 +270,7 @@ class TestAppFlow:
         at.run(timeout=10)
 
         # Type question — analysis triggers automatically on submit
-        at.text_input[0].set_value("lactose tolerance")
+        at.chat_input[0].set_value("lactose tolerance")
         at.run(timeout=10)
 
         assert not at.exception, f"Unexpected exception: {at.exception}"
@@ -294,7 +293,7 @@ class TestAppFlow:
         at.session_state["file_id"] = "test-file-id"
         at.run(timeout=10)
 
-        at.text_input[0].set_value("nonsense")
+        at.chat_input[0].set_value("nonsense")
         at.run(timeout=10)
 
         assert not at.exception, f"Unexpected exception: {at.exception}"
@@ -315,7 +314,7 @@ class TestAppFlow:
         at.session_state["file_id"] = "test-file-id"
         at.run(timeout=10)
 
-        at.text_input[0].set_value("test")
+        at.chat_input[0].set_value("test")
         at.run(timeout=10)
 
         assert not at.exception, f"Unexpected exception: {at.exception}"
@@ -339,8 +338,8 @@ class TestAppFlow:
         # Before asking — history empty
         assert len(at.session_state.history) == 0
 
-        # Ask a question → analysis → history populated
-        at.text_input[0].set_value("lactose tolerance")
+        # Ask a question -> analysis -> history populated
+        at.chat_input[0].set_value("lactose tolerance")
         at.run(timeout=10)
 
         assert not at.exception, f"Unexpected exception: {at.exception}"
@@ -396,8 +395,8 @@ class TestFormatHistory:
     def test_multiple_results_chronological_order(self):
         """Results are output in chronological order (oldest first)."""
         second = _FAKE_RESULT.model_copy(update={"question": "caffeine metabolism"})
-        # history stores newest first (insert(0, ...)), so second is at index 0
-        result = _format_history([second, _FAKE_RESULT])
+        # history stores chronologically (append), oldest first
+        result = _format_history([_FAKE_RESULT, second])
         pos_q1 = result.index("Question #1")
         pos_q2 = result.index("Question #2")
         assert pos_q1 < pos_q2
@@ -422,3 +421,78 @@ class TestFormatHistory:
         result = _format_history([_FAKE_RESULT])
         ts = _FAKE_RESULT.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         assert ts in result
+
+
+# ---------------------------------------------------------------------------
+# Chat interface tests
+# ---------------------------------------------------------------------------
+
+
+class TestChatInterface:
+    """Tests for the chat message display."""
+
+    def test_chat_messages_rendered_for_history(self, dna_file: Path):
+        """Chat history renders user and assistant messages."""
+        from streamlit.testing.v1 import AppTest
+
+        mock_engine = MagicMock()
+
+        at = AppTest.from_file("src/dna_rag/ui/app.py")
+        at.session_state["engine"] = mock_engine
+        at.session_state["dna_path"] = dna_file
+        at.session_state["dna_df"] = "placeholder"
+        at.session_state["file_id"] = "test-file-id"
+        at.session_state["history"] = [_FAKE_RESULT]
+        at.run(timeout=10)
+
+        assert not at.exception, f"Unexpected exception: {at.exception}"
+        # The question should appear in markdown (inside user chat_message)
+        assert any(
+            "lactose tolerance" in m.value for m in at.markdown
+        ), f"Expected question in chat, got: {[m.value for m in at.markdown]}"
+        # The interpretation should also appear
+        assert any(
+            "lactose tolerant" in m.value for m in at.markdown
+        ), f"Expected interpretation in chat, got: {[m.value for m in at.markdown]}"
+
+    def test_welcome_message_when_no_file(self):
+        """Assistant welcome message shown when no DNA file is uploaded."""
+        from streamlit.testing.v1 import AppTest
+
+        at = AppTest.from_file("src/dna_rag/ui/app.py")
+        at.session_state["engine"] = MagicMock()
+        at.run(timeout=10)
+
+        assert not at.exception, f"Unexpected exception: {at.exception}"
+        info_texts = [i.value for i in at.info]
+        assert any("upload" in t.lower() for t in info_texts)
+
+    def test_chat_input_present(self, dna_file: Path):
+        """Chat input is present and enabled when DNA file is loaded."""
+        from streamlit.testing.v1 import AppTest
+
+        at = AppTest.from_file("src/dna_rag/ui/app.py")
+        at.session_state["engine"] = MagicMock()
+        at.session_state["dna_path"] = dna_file
+        at.session_state["dna_df"] = "placeholder"
+        at.session_state["file_id"] = "test-file-id"
+        at.run(timeout=10)
+
+        assert not at.exception, f"Unexpected exception: {at.exception}"
+        assert len(at.chat_input) == 1
+
+    def test_download_button_in_sidebar_with_history(self, dna_file: Path):
+        """Download button appears when history exists."""
+        from streamlit.testing.v1 import AppTest
+
+        mock_engine = MagicMock()
+
+        at = AppTest.from_file("src/dna_rag/ui/app.py")
+        at.session_state["engine"] = mock_engine
+        at.session_state["dna_path"] = dna_file
+        at.session_state["dna_df"] = "placeholder"
+        at.session_state["file_id"] = "test-file-id"
+        at.session_state["history"] = [_FAKE_RESULT]
+        at.run(timeout=10)
+
+        assert not at.exception, f"Unexpected exception: {at.exception}"
