@@ -341,13 +341,70 @@ Interactive docs available at `http://localhost:8000/docs` when server is runnin
 - **No data is stored by this tool.** DNA RAG does not collect, store, or transmit your genetic data to any third party. All processing happens in your session.
 - **Every response includes a medical disclaimer** (configurable via `DNA_RAG_MEDICAL_DISCLAIMER`) reminding that genetic predisposition is not deterministic and recommending consultation with a healthcare professional. The LLM translates it into the response language.
 
+## NCBI Verification
+
+When enabled, each SNP identified by the LLM is verified against real biomedical databases before interpretation:
+
+```
+LLM identifies SNPs → dbSNP confirms they exist → ClinVar adds clinical data → LLM interprets with verified context
+```
+
+### What it does
+
+| Step | Source | Data |
+|------|--------|------|
+| 1. **dbSNP lookup** | NCBI dbSNP | Confirms RSID exists, corrects gene name, retrieves alleles and MAF |
+| 2. **ClinVar lookup** | NCBI ClinVar | Clinical significance (Benign / Pathogenic / VUS), associated trait |
+| 3. **Gene correction** | dbSNP → engine | If the LLM claimed a wrong gene, it is silently replaced with the authoritative one |
+| 4. **Prompt injection** | engine → LLM | A `VERIFIED DATA` block with MAF, ClinVar, and gene is added to the interpretation prompt |
+| 5. **UI display** | engine → UI | ClinVar verification expander shows both LLM opinion and NCBI data side by side |
+
+### How to enable
+
+**Streamlit UI** — use the 🔬 **NCBI verification** toggle in the sidebar. Switching it on/off rebuilds the engine instantly, no restart needed.
+
+**Environment variable** — set before starting the app:
+
+```bash
+DNA_RAG_VALIDATION_ENABLED=true   # enable NCBI verification by default
+```
+
+**Python API:**
+
+```python
+from dna_rag.snp_database import SNPDatabase
+
+engine = DNAAnalysisEngine(
+    snp_llm=DeepSeekProvider(settings),
+    snp_database=SNPDatabase(),  # enables NCBI verification
+)
+```
+
+### What the user sees
+
+| Toggle state | Metric column | ClinVar expander | Speed |
+|-------------|--------------|-----------------|-------|
+| **OFF** | `Validated: Disabled` | Hidden | Fast (~2-5s) |
+| **ON** | `Validated: ✅ NCBI` | Shows per-SNP clinical significance, trait, MAF | Slower (~5-15s) |
+
+> **Note:** NCBI E-utilities rate limit is 3 requests/second without an API key. For batch validation of many SNPs this adds ~3-10 seconds per query.
+
+### Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DNA_RAG_VALIDATION_ENABLED` | `false` | Enable NCBI dbSNP + ClinVar verification |
+| `DNA_RAG_VALIDATION_TIMEOUT` | `10.0` | Timeout per NCBI request in seconds |
+| `DNA_RAG_VALIDATION_RATE_LIMIT_DELAY` | `0.34` | Delay between NCBI requests (seconds) |
+
 ## Guardrails
 
 This tool is **not a medical device** and does not replace professional genetic counseling. Built-in safeguards:
 
 - **Structured LLM output** — Pydantic models validate every LLM response; malformed or unexpected output is rejected, not silently passed through.
 - **RSID format validation** — only SNP identifiers matching the `rs*` format are accepted; arbitrary text from the LLM is filtered out.
-- **Optional NCBI dbSNP validation** — when enabled (`DNA_RAG_VALIDATION_ENABLED=true`), each LLM-identified RSID is verified against the NCBI dbSNP database to confirm it is a real, known variant.
+- **NCBI verification** — when enabled (see [NCBI Verification](#ncbi-verification) above), each LLM-identified RSID is verified against NCBI dbSNP and ClinVar. Invalid RSIDs are removed; gene names are corrected; clinical significance is surfaced to the user.
+- **Anti-hallucination prompt** — the interpretation LLM receives a `VERIFIED DATA` block from NCBI and `CRITICAL RULES` that forbid inventing gene associations not supported by evidence.
 - **Medical disclaimer in every response** — a configurable disclaimer is appended to each interpretation, translated into the user's language.
 - **No diagnosis or treatment recommendations** — the LLM prompt asks for genotype interpretation only, not medical advice.
 
