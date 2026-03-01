@@ -71,6 +71,11 @@ class SNPResult(BaseModel):
     genotype: str
     gene: str = "unknown"
     trait: str = "unknown"
+    # NCBI-verified fields (populated when validation is enabled)
+    clinical_significance: str | None = None
+    clinvar_trait: str | None = None
+    maf: float | None = None
+    maf_allele: str | None = None
 
 
 class AnalysisResult(BaseModel):

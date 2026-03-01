@@ -423,19 +423,33 @@ class DNAAnalysisEngine:
         result = result.drop(columns=["rsid_key"])
         return result
 
-    @staticmethod
-    def _dataframe_to_snp_results(df: DataFrame) -> list[SNPResult]:
-        """Convert matched DataFrame rows to :class:`SNPResult` models."""
+    def _dataframe_to_snp_results(self, df: DataFrame) -> list[SNPResult]:
+        """Convert matched DataFrame rows to :class:`SNPResult` models.
+
+        When NCBI validation results are available, enriches each
+        :class:`SNPResult` with ``clinical_significance``, ``clinvar_trait``,
+        ``maf``, and ``maf_allele`` from the validation data.
+        """
+        validation = getattr(self, "_validation_results", None) or {}
         results: list[SNPResult] = []
         for _, row in df.iterrows():
+            rsid = str(row["RSID"])
+            vr = validation.get(rsid.lower())
+            extra: dict[str, object] = {}
+            if vr is not None and vr.exists:
+                extra["clinical_significance"] = vr.clinical_significance
+                extra["clinvar_trait"] = vr.clinvar_trait
+                extra["maf"] = vr.maf
+                extra["maf_allele"] = vr.maf_allele
             results.append(
                 SNPResult(
-                    rsid=str(row["RSID"]),
+                    rsid=rsid,
                     chromosome=str(row["CHROMOSOME"]),
                     position=int(row["POSITION"]),
                     genotype=str(row["GENOTYPE"]),
                     gene=str(row.get("gene", "unknown")),
                     trait=str(row.get("trait", "unknown")),
+                    **extra,
                 )
             )
         return results

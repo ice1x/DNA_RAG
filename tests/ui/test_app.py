@@ -12,7 +12,12 @@ st = pytest.importorskip("streamlit", reason="streamlit is required for UI tests
 from dna_rag.config import Settings  # noqa: E402
 from dna_rag.exceptions import AnalysisError, ConfigurationError, DNARagError  # noqa: E402
 from dna_rag.models import AnalysisResult, SNPResult  # noqa: E402
-from dna_rag.ui.app import _build_engine, _format_history, _make_llm_provider  # noqa: E402
+from dna_rag.ui.app import (  # noqa: E402
+    _build_engine,
+    _format_history,
+    _make_llm_provider,
+    _snp_to_display_row,
+)
 from tests.ui.conftest import INTERPRETATION  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -129,6 +134,29 @@ _FAKE_RESULT = AnalysisResult(
 )
 
 _FAKE_RESULT_CACHED = _FAKE_RESULT.model_copy(update={"cached": True})
+
+_FAKE_RESULT_CLINVAR = AnalysisResult(
+    question="lactose tolerance",
+    matched_snps=[
+        SNPResult(
+            rsid="rs1",
+            chromosome="1",
+            position=111,
+            genotype="AA",
+            gene="LCT",
+            trait="Lactose tolerance",
+            clinical_significance="Benign",
+            clinvar_trait="Lactose intolerance",
+            maf=0.25,
+            maf_allele="T",
+        ),
+    ],
+    interpretation=INTERPRETATION,
+    snp_count_requested=1,
+    snp_count_matched=1,
+    cached=False,
+    validation_used=True,
+)
 
 _EMPTY_RESULT = AnalysisResult(
     question="test",
@@ -496,3 +524,94 @@ class TestChatInterface:
         at.run(timeout=10)
 
         assert not at.exception, f"Unexpected exception: {at.exception}"
+
+
+# ---------------------------------------------------------------------------
+# ClinVar display tests
+# ---------------------------------------------------------------------------
+
+
+class TestClinVarDisplay:
+    """ClinVar verification data is rendered in the UI."""
+
+    def test_render_answer_with_clinvar(self):
+        """_render_answer shows ClinVar data when available."""
+        from streamlit.testing.v1 import AppTest
+
+        def script():
+            from dna_rag.ui.app import _render_answer  # noqa: F811
+            from tests.ui.test_app import _FAKE_RESULT_CLINVAR
+
+            _render_answer(_FAKE_RESULT_CLINVAR)
+
+        at = AppTest.from_function(script)
+        at.run(timeout=10)
+        assert not at.exception, f"Unexpected exception: {at.exception}"
+        # ClinVar expander should contain significance data
+        all_md = " ".join(m.value for m in at.markdown)
+        assert "Benign" in all_md
+        assert "Lactose intolerance" in all_md
+
+    def test_render_answer_without_clinvar_no_expander(self):
+        """Without ClinVar data, the verification expander is not shown."""
+        from streamlit.testing.v1 import AppTest
+
+        def script():
+            from dna_rag.ui.app import _render_answer  # noqa: F811
+            from tests.ui.test_app import _FAKE_RESULT
+
+            _render_answer(_FAKE_RESULT)
+
+        at = AppTest.from_function(script)
+        at.run(timeout=10)
+        assert not at.exception, f"Unexpected exception: {at.exception}"
+        # ClinVar caption should not appear
+        captions = [c.value for c in at.caption]
+        assert not any("ClinVar" in c for c in captions)
+
+    def test_snp_to_display_row_with_clinvar(self):
+        """_snp_to_display_row includes ClinVar columns when data is present."""
+        snp = SNPResult(
+            rsid="rs1", chromosome="1", position=111, genotype="AA",
+            gene="LCT", trait="Lactose tolerance",
+            clinical_significance="Pathogenic",
+            clinvar_trait="Familial hypercholesterolemia",
+            maf=0.0012, maf_allele="A",
+        )
+        row = _snp_to_display_row(snp)
+        assert row["ClinVar"] == "Pathogenic"
+        assert row["ClinVar Trait"] == "Familial hypercholesterolemia"
+        assert row["MAF"] == "0.0012"
+
+    def test_snp_to_display_row_without_clinvar(self):
+        """_snp_to_display_row omits ClinVar columns when data is absent."""
+        snp = SNPResult(
+            rsid="rs1", chromosome="1", position=111, genotype="AA",
+            gene="LCT", trait="Lactose tolerance",
+        )
+        row = _snp_to_display_row(snp)
+        assert "ClinVar" not in row
+        assert "ClinVar Trait" not in row
+        assert "MAF" not in row
+
+
+# ---------------------------------------------------------------------------
+# _format_history with ClinVar
+# ---------------------------------------------------------------------------
+
+
+class TestFormatHistoryClinVar:
+    """_format_history includes ClinVar data in text export."""
+
+    def test_clinvar_in_export(self):
+        """ClinVar significance appears in exported text."""
+        result = _format_history([_FAKE_RESULT_CLINVAR])
+        assert "ClinVar: Benign" in result
+        assert "Lactose intolerance" in result
+        assert "MAF: 0.2500" in result
+
+    def test_no_clinvar_in_export_when_absent(self):
+        """Without ClinVar data, export does not mention ClinVar."""
+        result = _format_history([_FAKE_RESULT])
+        assert "ClinVar:" not in result
+        assert "MAF:" not in result

@@ -500,3 +500,85 @@ class TestVerifiedMetadataInPrompt:
         assert "CRITICAL RULES" in interp_prompt
         assert "Do NOT invent or guess" in interp_prompt
         assert "weak" in interp_prompt.lower()
+
+
+# ---------------------------------------------------------------------------
+# ClinVar data propagation to SNPResult
+# ---------------------------------------------------------------------------
+
+
+class TestClinVarDataInSNPResult:
+    """Validation metadata is propagated into SNPResult objects."""
+
+    def test_clinvar_fields_populated(self, sample_23andme_file: Path):
+        """SNPResult contains ClinVar significance, trait, MAF when available."""
+        snp_json = json.dumps({
+            "rs1": {
+                "gene": "LCT",
+                "chromosome": "1",
+                "position": 111,
+                "trait": "Lactose",
+            }
+        })
+        fake_db = _FakeSNPDatabase({
+            "rs1": SNPValidationResult(
+                rsid="rs1", exists=True, gene="LCT",
+                chromosome="1", position=111, validated=True,
+                source="dbsnp", maf=0.25, maf_allele="T",
+                maf_study="GnomAD_genomes",
+                clinical_significance="Benign",
+                clinvar_trait="Lactose intolerance",
+            ),
+        })
+        llm = FakeLLMProvider([snp_json, "interpretation"])
+        engine = DNAAnalysisEngine(
+            snp_llm=llm, cache=None, snp_database=fake_db,
+        )
+
+        result = engine.analyze("lactose", sample_23andme_file)
+
+        snp = result.matched_snps[0]
+        assert snp.clinical_significance == "Benign"
+        assert snp.clinvar_trait == "Lactose intolerance"
+        assert snp.maf == 0.25
+        assert snp.maf_allele == "T"
+
+    def test_clinvar_fields_none_without_validation(self, sample_23andme_file: Path):
+        """Without SNP database, ClinVar fields remain None."""
+        llm = FakeLLMProvider([_SNP_JSON, _INTERPRETATION])
+        engine = DNAAnalysisEngine(snp_llm=llm, cache=None)
+
+        result = engine.analyze("lactose", sample_23andme_file)
+
+        snp = result.matched_snps[0]
+        assert snp.clinical_significance is None
+        assert snp.clinvar_trait is None
+        assert snp.maf is None
+
+    def test_clinvar_not_found_leaves_none(self, sample_23andme_file: Path):
+        """When ClinVar has no data for a SNP, fields stay None."""
+        snp_json = json.dumps({
+            "rs1": {
+                "gene": "LCT",
+                "chromosome": "1",
+                "position": 111,
+                "trait": "Lactose",
+            }
+        })
+        fake_db = _FakeSNPDatabase({
+            "rs1": SNPValidationResult(
+                rsid="rs1", exists=True, gene="LCT",
+                validated=True, source="dbsnp",
+            ),
+        })
+        llm = FakeLLMProvider([snp_json, "interpretation"])
+        engine = DNAAnalysisEngine(
+            snp_llm=llm, cache=None, snp_database=fake_db,
+        )
+
+        result = engine.analyze("lactose", sample_23andme_file)
+
+        snp = result.matched_snps[0]
+        assert snp.clinical_significance is None
+        assert snp.clinvar_trait is None
+        assert snp.maf is None
