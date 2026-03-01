@@ -77,7 +77,7 @@ class Settings(BaseSettings):
     rag_min_similarity: float = Field(0.3, ge=0.0, le=1.0)
 
     # --- SNP Validation (NCBI) --------------------------------------------
-    validation_enabled: bool = False
+    validation_enabled: bool = True
     validation_timeout: float = Field(10.0, gt=0)
     validation_rate_limit_delay: float = Field(0.34, ge=0.0)
 

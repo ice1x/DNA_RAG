@@ -393,7 +393,7 @@ engine = DNAAnalysisEngine(
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DNA_RAG_VALIDATION_ENABLED` | `false` | Enable NCBI dbSNP + ClinVar verification |
+| `DNA_RAG_VALIDATION_ENABLED` | `true` | Enable NCBI dbSNP + ClinVar verification |
 | `DNA_RAG_VALIDATION_TIMEOUT` | `10.0` | Timeout per NCBI request in seconds |
 | `DNA_RAG_VALIDATION_RATE_LIMIT_DELAY` | `0.34` | Delay between NCBI requests (seconds) |
 

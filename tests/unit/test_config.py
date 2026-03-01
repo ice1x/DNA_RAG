@@ -138,7 +138,7 @@ class TestRAGSettings:
     def test_validation_defaults(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setenv("DNA_RAG_LLM_API_KEY", "test")
         s = Settings()  # type: ignore[call-arg]
-        assert s.validation_enabled is False
+        assert s.validation_enabled is True
         assert s.validation_timeout == 10.0
         assert s.validation_rate_limit_delay == 0.34
 
