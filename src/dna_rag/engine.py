@@ -435,12 +435,15 @@ class DNAAnalysisEngine:
         for _, row in df.iterrows():
             rsid = str(row["RSID"])
             vr = validation.get(rsid.lower())
-            extra: dict[str, object] = {}
+            clin_sig: str | None = None
+            clin_trait: str | None = None
+            maf: float | None = None
+            maf_allele: str | None = None
             if vr is not None and vr.exists:
-                extra["clinical_significance"] = vr.clinical_significance
-                extra["clinvar_trait"] = vr.clinvar_trait
-                extra["maf"] = vr.maf
-                extra["maf_allele"] = vr.maf_allele
+                clin_sig = vr.clinical_significance
+                clin_trait = vr.clinvar_trait
+                maf = vr.maf
+                maf_allele = vr.maf_allele
             results.append(
                 SNPResult(
                     rsid=rsid,
@@ -449,7 +452,10 @@ class DNAAnalysisEngine:
                     genotype=str(row["GENOTYPE"]),
                     gene=str(row.get("gene", "unknown")),
                     trait=str(row.get("trait", "unknown")),
-                    **extra,
+                    clinical_significance=clin_sig,
+                    clinvar_trait=clin_trait,
+                    maf=maf,
+                    maf_allele=maf_allele,
                 )
             )
         return results
