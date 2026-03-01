@@ -35,6 +35,8 @@ class TestAskCommand:
 
     def test_text_output(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("DNA_RAG_LLM_API_KEY", "test-key")
+        monkeypatch.setenv("DNA_RAG_VALIDATION_ENABLED", "false")
+        monkeypatch.setenv("DNA_RAG_RAG_ENABLED", "false")
         dna = _make_dna_file(tmp_path)
         fake = FakeLLMProvider([_SNP_JSON, _INTERPRETATION])
 
@@ -50,6 +52,8 @@ class TestAskCommand:
 
     def test_json_output(self, tmp_path: Path, monkeypatch):
         monkeypatch.setenv("DNA_RAG_LLM_API_KEY", "test-key")
+        monkeypatch.setenv("DNA_RAG_VALIDATION_ENABLED", "false")
+        monkeypatch.setenv("DNA_RAG_RAG_ENABLED", "false")
         monkeypatch.setenv("DNA_RAG_LOG_LEVEL", "CRITICAL")  # suppress log noise
         dna = _make_dna_file(tmp_path)
         fake = FakeLLMProvider([_SNP_JSON, _INTERPRETATION])
