@@ -29,7 +29,7 @@ from dna_rag.exceptions import (
     ConfigurationError,
     DNARagError,
 )
-from dna_rag.models import AnalysisResult
+from dna_rag.models import AnalysisResult, SNPResult
 
 # ---------------------------------------------------------------------------
 # Engine wiring (same pattern as cli.py)
@@ -121,14 +121,66 @@ def _render_answer(result: AnalysisResult) -> None:
 
     st.markdown(result.interpretation)
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     col1.metric("SNPs requested", result.snp_count_requested)
     col2.metric("SNPs matched", result.snp_count_matched)
+    if result.validation_used:
+        col3.metric("Validated", "\u2705 NCBI")
+    else:
+        col3.metric("Validated", "\u2014")
 
     if result.matched_snps:
+        # --- ClinVar comparison block ---
+        has_clinvar = any(s.clinical_significance for s in result.matched_snps)
+        if has_clinvar:
+            with st.expander("\U0001f50d ClinVar verification", expanded=True):
+                for snp in result.matched_snps:
+                    if not snp.clinical_significance:
+                        continue
+                    maf_str = (
+                        f" | MAF: {snp.maf:.4f} ({snp.maf_allele})"
+                        if snp.maf is not None
+                        else ""
+                    )
+                    clinvar_line = (
+                        f"**{snp.rsid}** ({snp.gene}) — "
+                        f"ClinVar: **{snp.clinical_significance}**"
+                    )
+                    if snp.clinvar_trait:
+                        clinvar_line += f" | Trait: {snp.clinvar_trait}"
+                    clinvar_line += maf_str
+                    st.markdown(clinvar_line)
+
+                st.caption(
+                    "LLM interpretation is shown above. ClinVar data comes from "
+                    "[NCBI ClinVar](https://www.ncbi.nlm.nih.gov/clinvar/) — "
+                    "compare both for a complete picture."
+                )
+
         with st.expander(f"Matched SNPs ({len(result.matched_snps)})"):
-            rows = [snp.model_dump() for snp in result.matched_snps]
+            rows = [
+                _snp_to_display_row(snp) for snp in result.matched_snps
+            ]
             st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+
+
+def _snp_to_display_row(snp: SNPResult) -> dict[str, object]:
+    """Convert a :class:`SNPResult` to a dict suitable for display."""
+    row: dict[str, object] = {
+        "RSID": snp.rsid,
+        "Gene": snp.gene,
+        "Genotype": snp.genotype,
+        "Chromosome": snp.chromosome,
+        "Position": snp.position,
+        "Trait (LLM)": snp.trait,
+    }
+    if snp.clinical_significance is not None:
+        row["ClinVar"] = snp.clinical_significance
+    if snp.clinvar_trait is not None:
+        row["ClinVar Trait"] = snp.clinvar_trait
+    if snp.maf is not None:
+        row["MAF"] = f"{snp.maf:.4f}"
+    return row
 
 
 def _format_history(history: list[AnalysisResult]) -> str:
@@ -154,10 +206,17 @@ def _format_history(history: list[AnalysisResult]) -> str:
         if result.matched_snps:
             lines.append("Matched SNPs:")
             for snp in result.matched_snps:
-                lines.append(
+                snp_line = (
                     f"  - {snp.rsid} | chr{snp.chromosome}:{snp.position}"
                     f" | {snp.genotype} | {snp.gene} | {snp.trait}"
                 )
+                if snp.clinical_significance:
+                    snp_line += f" | ClinVar: {snp.clinical_significance}"
+                if snp.clinvar_trait:
+                    snp_line += f" ({snp.clinvar_trait})"
+                if snp.maf is not None:
+                    snp_line += f" | MAF: {snp.maf:.4f}"
+                lines.append(snp_line)
         if result.cached:
             lines.append("(cached result)")
         lines.append("-" * 60)
